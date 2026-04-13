@@ -1,37 +1,239 @@
+// ============================================================
+// DatSanVN — Prisma Schema (Final v1.0)
+// Nền tảng đặt sân thể thao trực tuyến
+// ============================================================
+// Business Rules:
+// - Booking states: PENDING → CONFIRMED → COMPLETED / CANCELLED
+// - Slot lock 5 phút bằng Redis TTL (xử lý ở application layer)
+// - OWNER phải được ADMIN duyệt (VenueOwner.status = APPROVED)
+// - Chủ sân chỉ CANCEL trước 24h
+// - Refund: 100% trước 12h, 50% trước 6h, 0% trong 6h cuối
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+enum Role {
+  USER
+  OWNER
+  ADMIN
+}
+
+enum OwnerStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SportType {
+  FOOTBALL
+  BADMINTON
+  TENNIS
+  BASKETBALL
+  VOLLEYBALL
+  TABLE_TENNIS
+  PICKLEBALL
+}
+
+enum SlotStatus {
+  AVAILABLE
+  LOCKED // Redis TTL 5 phút quản lý auto-release
+  BOOKED
+}
+
+enum BookingStatus {
+  PENDING // Chờ thanh toán / confirm
+  CONFIRMED // Đã thanh toán + slot locked
+  COMPLETED // Hoàn thành trận đấu
+  CANCELLED // Đã hủy
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED_FULL
+  REFUNDED_HALF
+  FAILED
+}
+
+enum PaymentMethod {
+  MOMO
+  VNPAY
+  BANK_TRANSFER
+  CASH
+}
+
+// ============================================================
+// MODELS
+// ============================================================
+model User {
+  id        String   @id @default(uuid())
+  clerkId   String?  @unique @map("clerk_id")
+  email     String   @unique
+  fullName  String   @map("full_name")
+  phone     String?
+  avatarUrl String?  @map("avatar_url")
+  role      Role     @default(USER)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  ownerships VenueOwner[]
+  bookings   Booking[]
+  payments   Payment[]
+  reviews    Review[]
+
+  @@map("users")
+}
+
 model Venue {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   name        String
+  description String?
   address     String
   district    String
   city        String
-  type        String
-  pricePerHour Int
+  latitude    Float?
+  longitude   Float?
+  sportType   SportType @map("sport_type")
+  capacity    Int? // Số người tối đa / sân (tùy chọn)
   images      String[]
-  ownerId     String
-  isActive    Boolean  @default(false)
+  amenities   String[]
+  isActive    Boolean   @default(false) @map("is_active") // ADMIN duyệt sân
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
 
-  owner       User     @relation(fields: [ownerId], references: [id])
-  slots       VenueSlot[]
-  bookings    Booking[]   @relation("VenueBookings")   // thêm tên relation
+  owners   VenueOwner[]
+  slots    VenueSlot[]
+  bookings Booking[]
+  reviews  Review[]
 
+  @@index([city, district])
+  @@index([sportType])
+  @@index([isActive])
   @@map("venues")
 }
 
+model VenueOwner {
+  id        String      @id @default(uuid())
+  userId    String      @map("user_id")
+  venueId   String      @map("venue_id")
+  status    OwnerStatus @default(PENDING)
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, venueId])
+  @@index([status])
+  @@map("venue_owners")
+}
+
+model VenueSlot {
+  id           String     @id @default(uuid())
+  venueId      String     @map("venue_id")
+  date         DateTime   @db.Date
+  startTime    DateTime   @map("start_time") @db.Time(0)
+  endTime      DateTime   @map("end_time") @db.Time(0)
+  pricePerSlot Int        @map("price_per_slot")
+  status       SlotStatus @default(AVAILABLE)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  venue        Venue         @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  bookingSlots BookingSlot[]
+
+  @@index([venueId, date])
+  @@index([venueId, date, startTime]) // Quan trọng cho tìm slot trống
+  @@index([venueId, date, status])
+  @@index([status])
+  @@map("venue_slots")
+}
+
 model Booking {
-  id          String        @id @default(uuid())
-  userId      String
-  venueSlotId String        @unique
-  status      BookingStatus @default(PENDING)
-  totalPrice  Int
-  cancelledAt DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id           String        @id @default(uuid())
+  userId       String        @map("user_id")
+  venueId      String        @map("venue_id")
+  status       BookingStatus @default(PENDING)
+  totalPrice   Int           @map("total_price")
+  note         String?
+  cancelReason String?       @map("cancel_reason")
+  cancelledAt  DateTime?     @map("cancelled_at")
+  cancelledBy  String?       @map("cancelled_by")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
 
-  user        User          @relation(fields: [userId], references: [id])
-  slot        VenueSlot     @relation(fields: [venueSlotId], references: [id])
-  venue       Venue         @relation("VenueBookings", fields: [venueId], references: [id])  // thêm dòng này
+  user         User          @relation(fields: [userId], references: [id])
+  venue        Venue         @relation(fields: [venueId], references: [id])
+  bookingSlots BookingSlot[]
+  payment      Payment?
 
-  venueId     String        // thêm trường này để link trực tiếp với Venue
-
+  @@index([userId, status])
+  @@index([venueId, status])
+  @@index([createdAt])
   @@map("bookings")
+}
+
+model BookingSlot {
+  id          String @id @default(uuid())
+  bookingId   String @map("booking_id")
+  venueSlotId String @map("venue_slot_id")
+
+  booking   Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  venueSlot VenueSlot @relation(fields: [venueSlotId], references: [id])
+
+  @@unique([bookingId, venueSlotId])
+  @@index([venueSlotId])
+  @@map("booking_slots")
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  bookingId     String        @unique @map("booking_id")
+  userId        String        @map("user_id")
+  amount        Int           @map("amount")
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  transactionId String?       @map("transaction_id")
+  refundAmount  Int?          @map("refund_amount")
+  refundedAt    DateTime?     @map("refunded_at")
+  paidAt        DateTime?     @map("paid_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("payments")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  venueId   String   @map("venue_id")
+  rating    Int // 1-5
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user  User  @relation(fields: [userId], references: [id])
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, venueId])
+  @@index([venueId])
+  @@index([rating])
+  @@map("reviews")
 }
