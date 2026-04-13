@@ -9,4 +9,13 @@ export class AppController {
   getHello(): string {
     return this.appService.getHello();
   }
+
+  /**
+   * Health check endpoint — returns DB connectivity status.
+   * Excluded from global /api prefix → accessible at GET /health
+   */
+  @Get('health')
+  async healthCheck() {
+    return this.appService.checkHealth();
+  }
 }

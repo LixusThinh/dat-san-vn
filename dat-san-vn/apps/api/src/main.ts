@@ -1,6 +1,8 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { AppModule } from './app.module.js';
 import { Logger, ValidationPipe } from '@nestjs/common';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
 
 async function bootstrap() {
   /**
@@ -27,6 +29,9 @@ async function bootstrap() {
     }),
   );
 
+  app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalInterceptors(new TransformInterceptor());
+
   // ── CORS ────────────────────────────────────────────────────────────────────
   app.enableCors({
     origin: process.env.FRONTEND_URL ?? 'http://localhost:3001',
@@ -35,7 +40,7 @@ async function bootstrap() {
 
   // ── Global prefix (exclude webhooks so path stays /webhooks/clerk) ──────────
   app.setGlobalPrefix('api', {
-    exclude: ['webhooks/(.*)'],
+    exclude: ['webhooks/(.*)', 'health'],
   });
 
   const port = process.env.PORT ?? 3000;

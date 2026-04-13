@@ -1,8 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Webhook } from 'svix';
-import { PrismaService } from '../../prisma/prisma.service.js';
-import { Role } from '@prisma/client';
+import { UserService } from '../../user/user.service.js';
 import {
   type ClerkUserData,
   type ClerkDeletedData,
@@ -21,7 +20,7 @@ import {
  * Architecture:
  *  - verifySignature(): uses Svix to verify HMAC-SHA256 + timestamp
  *  - handleEvent(): routes to per-event handler using discriminated union
- *  - All DB operations are idempotent (upsert, not insert)
+ *  - User sync operations are delegated to UserService (single source of truth)
  *
  * Design decisions:
  *  - verifySignature() throws on invalid; controller catches and returns 200
@@ -45,7 +44,7 @@ export class ClerkWebhookService {
   private readonly webhook: Webhook;
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly userService: UserService,
     private readonly configService: ConfigService,
   ) {
     /**
@@ -63,8 +62,8 @@ export class ClerkWebhookService {
     if (!secret) {
       throw new Error(
         '[ClerkWebhookService] Missing CLERK_WEBHOOK_SECRET env var. ' +
-          'Set it in .env: CLERK_WEBHOOK_SECRET=whsec_xxxx...\n' +
-          'Find it at: Clerk Dashboard → Configure → Webhooks → your endpoint → Signing Secret.',
+        'Set it in .env: CLERK_WEBHOOK_SECRET=whsec_xxxx...\n' +
+        'Find it at: Clerk Dashboard → Configure → Webhooks → your endpoint → Signing Secret.',
       );
     }
 
@@ -129,7 +128,7 @@ export class ClerkWebhookService {
 
       throw new Error(
         `[Verify] Unsupported or malformed event type: "${eventType}". ` +
-          'Only user.created, user.updated, user.deleted are handled.',
+        'Only user.created, user.updated, user.deleted are handled.',
       );
     }
 
@@ -172,59 +171,32 @@ export class ClerkWebhookService {
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
   /**
-   * user.created — Upsert user into our database.
+   * user.created — Upsert user into our database via UserService.
    *
-   * IDEMPOTENCY: Uses `upsert` with `clerkId` as the unique key.
-   * Replaying this event (Clerk retries on network errors) will not
-   * create duplicates — it will update the existing record instead.
-   *
-   * Default role = USER. Role is only changed via our admin flows.
+   * Delegates to UserService.syncFromClerk() for idempotent upsert.
+   * Default role = PLAYER. Role is only changed via our admin flows.
    *
    * @param event  Narrowed ClerkUserCreatedEvent (data is ClerkUserData)
    */
   private async handleUserCreated(event: ClerkUserCreatedEvent): Promise<void> {
     const data: ClerkUserData = event.data;
-    const email = this.extractPrimaryEmail(data);
 
-    if (!email) {
+    if (!this.hasPrimaryEmail(data)) {
       this.logger.warn(
         `[user.created] No primary email for clerkId=${data.id}. ` +
-          'User cannot be created without an email. Skipping.',
+        'User cannot be created without an email. Skipping.',
       );
       return;
     }
 
     try {
-      const user = await this.prisma.user.upsert({
-        where: { clerkId: data.id },
-        create: {
-          clerkId: data.id,
-          email,
-          fullName: this.buildFullName(data),
-          phone: this.extractPrimaryPhone(data) ?? undefined,
-          avatarUrl: data.image_url ?? undefined,
-          role: Role.USER,   // Default role — do NOT change on replay
-          isActive: true,
-        },
-        update: {
-          // On replay: sync profile data but preserve role and isActive
-          email,
-          fullName: this.buildFullName(data),
-          avatarUrl: data.image_url ?? undefined,
-          // Phone update only if available — avoid overwriting with null
-          ...(this.extractPrimaryPhone(data) !== null && {
-            phone: this.extractPrimaryPhone(data) ?? undefined,
-          }),
-          isActive: true,
-        },
-      });
-
+      const user = await this.userService.syncFromClerk(data);
       this.logger.log(
-        `[user.created] Upserted → id=${user.id} clerkId=${data.id} email=${email}`,
+        `[user.created] Synced → id=${user.id} clerkId=${data.id} email=${user.email}`,
       );
     } catch (error) {
       this.logger.error(
-        `[user.created] Failed to upsert clerkId=${data.id}`,
+        `[user.created] Failed to sync clerkId=${data.id}`,
         error instanceof Error ? error.stack : String(error),
       );
       throw error; // Re-throw → controller logs but still returns HTTP 200
@@ -232,42 +204,15 @@ export class ClerkWebhookService {
   }
 
   /**
-   * user.updated — Sync profile changes from Clerk to our DB.
-   *
-   * IDEMPOTENCY: Uses `upsert` — if user somehow doesn't exist, creates it.
-   * SAFETY: Does NOT overwrite `role` or `isActive` — those are our domain.
-   *
-   * Fields synced: email, fullName, avatarUrl, phone
+   * user.updated — Sync profile changes from Clerk to our DB via UserService.
    *
    * @param event  Narrowed ClerkUserUpdatedEvent (data is ClerkUserData)
    */
   private async handleUserUpdated(event: ClerkUserUpdatedEvent): Promise<void> {
     const data: ClerkUserData = event.data;
-    const email = this.extractPrimaryEmail(data);
-    const phone = this.extractPrimaryPhone(data);
 
     try {
-      const user = await this.prisma.user.upsert({
-        where: { clerkId: data.id },
-        create: {
-          // Safety fallback: create user if it doesn't exist yet
-          clerkId: data.id,
-          email: email ?? `clerk_${data.id}@placeholder.invalid`,
-          fullName: this.buildFullName(data),
-          phone: phone ?? undefined,
-          avatarUrl: data.image_url ?? undefined,
-          role: Role.USER,
-          isActive: true,
-        },
-        update: {
-          // Only update fields managed by Clerk; preserve role, isActive
-          ...(email && { email }),
-          fullName: this.buildFullName(data),
-          avatarUrl: data.image_url ?? undefined,
-          ...(phone !== null && { phone }),
-        },
-      });
-
+      const user = await this.userService.syncFromClerk(data);
       this.logger.log(
         `[user.updated] Synced → id=${user.id} clerkId=${data.id}`,
       );
@@ -281,13 +226,7 @@ export class ClerkWebhookService {
   }
 
   /**
-   * user.deleted — Soft-delete the user in our DB (set isActive = false).
-   *
-   * WHY SOFT DELETE:
-   *  Hard-deleting breaks FK references in bookings, reviews, etc.
-   *  Soft delete preserves history while marking the user as inactive.
-   *
-   * IDEMPOTENCY: If user not found, we log and return — nothing to do.
+   * user.deleted — Soft-delete the user via UserService.
    *
    * @param event  Narrowed ClerkUserDeletedEvent (data is ClerkDeletedData)
    */
@@ -295,36 +234,8 @@ export class ClerkWebhookService {
     const data: ClerkDeletedData = event.data;
 
     try {
-      // Check existence first to give a meaningful log message
-      const existingUser = await this.prisma.user.findUnique({
-        where: { clerkId: data.id },
-        select: { id: true, isActive: true },
-      });
-
-      if (!existingUser) {
-        this.logger.warn(
-          `[user.deleted] User not found for clerkId=${data.id}. ` +
-            'Either already deleted or was never synced. No action taken.',
-        );
-        return;
-      }
-
-      if (!existingUser.isActive) {
-        // Already soft-deleted — idempotent, nothing to do
-        this.logger.log(
-          `[user.deleted] User id=${existingUser.id} already inactive. Skipping.`,
-        );
-        return;
-      }
-
-      await this.prisma.user.update({
-        where: { clerkId: data.id },
-        data: { isActive: false },
-      });
-
-      this.logger.log(
-        `[user.deleted] Soft-deleted → id=${existingUser.id} clerkId=${data.id}`,
-      );
+      await this.userService.softDeleteByClerkId(data.id);
+      this.logger.log(`[user.deleted] Processed for clerkId=${data.id}`);
     } catch (error) {
       this.logger.error(
         `[user.deleted] Failed for clerkId=${data.id}`,
@@ -337,42 +248,14 @@ export class ClerkWebhookService {
   // ─── Private Helpers ───────────────────────────────────────────────────────
 
   /**
-   * Extracts the primary email string from ClerkUserData.
-   * Returns null if no primary email is set or it cannot be found.
+   * Checks if the user has a primary email set.
    */
-  private extractPrimaryEmail(data: ClerkUserData): string | null {
-    if (!data.primary_email_address_id) return null;
+  private hasPrimaryEmail(data: ClerkUserData): boolean {
+    if (!data.primary_email_address_id) return false;
 
-    const emailObj = data.email_addresses.find(
+    return data.email_addresses.some(
       (e) => e.id === data.primary_email_address_id,
     );
-
-    return emailObj?.email_address ?? null;
-  }
-
-  /**
-   * Extracts the primary phone number string from ClerkUserData.
-   * Returns null if no primary phone is set or it cannot be found.
-   */
-  private extractPrimaryPhone(data: ClerkUserData): string | null {
-    if (!data.primary_phone_number_id) return null;
-
-    const phoneObj = data.phone_numbers.find(
-      (p) => p.id === data.primary_phone_number_id,
-    );
-
-    return phoneObj?.phone_number ?? null;
-  }
-
-  /**
-   * Builds a display name from Clerk first_name + last_name.
-   * Falls back to 'Unknown' if both are null/empty.
-   */
-  private buildFullName(data: ClerkUserData): string {
-    const parts = [data.first_name, data.last_name].filter(
-      (p): p is string => typeof p === 'string' && p.trim().length > 0,
-    );
-    return parts.length > 0 ? parts.join(' ') : 'Unknown';
   }
 
   /**

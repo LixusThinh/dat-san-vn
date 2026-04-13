@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ClerkWebhookController } from './clerk/clerk-webhook.controller.js';
 import { ClerkWebhookService } from './clerk/clerk-webhook.service.js';
+import { UserModule } from '../user/user.module.js';
 
 /**
  * WebhooksModule
@@ -10,7 +11,8 @@ import { ClerkWebhookService } from './clerk/clerk-webhook.service.js';
  * Currently handles:
  *  - Clerk user lifecycle events → POST /webhooks/clerk
  *
- * Notes on global dependencies (no need to import here):
+ * Dependencies:
+ *  - UserModule     → UserService for syncing Clerk users to DB
  *  - PrismaService  → provided by PrismaModule (@Global)
  *  - ConfigService  → provided by ConfigModule (isGlobal: true)
  *
@@ -19,6 +21,7 @@ import { ClerkWebhookService } from './clerk/clerk-webhook.service.js';
  *  2. Add them to controllers[] and providers[] here
  */
 @Module({
+  imports: [UserModule],
   controllers: [ClerkWebhookController],
   providers: [ClerkWebhookService],
 })
