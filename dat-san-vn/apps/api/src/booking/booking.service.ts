@@ -8,12 +8,16 @@ import {
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateBookingDto } from './dto/index.js';
 import { success } from '../common/helpers/api-response.helper.js';
+import { BookingExpirationService } from '../queues/booking-expiration/booking-expiration.service.js';
 
 @Injectable()
 export class BookingService {
   private readonly logger = new Logger(BookingService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly bookingExpirationService: BookingExpirationService,
+  ) {}
 
   async createBooking(userId: string, dto: CreateBookingDto) {
     // 1. Validate slot availability
@@ -69,6 +73,10 @@ export class BookingService {
     });
 
     this.logger.log(`Booking created: ${booking.id} by user: ${userId}`);
+    
+    // Phase 5: Hook into Booking Flow
+    await this.bookingExpirationService.addExpirationJob(booking.id);
+
     return success(booking, 'Booking created successfully', 201);
   }
 

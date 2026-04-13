@@ -10,6 +10,7 @@ import { BookingModule } from './booking/booking.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { UserModule } from './user/user.module.js';
 import { clerkConfig } from './config/clerk.config.js';
+import { QueuesModule } from './queues/queues.module.js';
 
 /**
  * AppModule — root module.
@@ -62,6 +63,9 @@ import { clerkConfig } from './config/clerk.config.js';
     VenueModule,
     FieldModule,
     BookingModule,
+
+    // Background Jobs
+    QueuesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

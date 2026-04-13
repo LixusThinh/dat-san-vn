@@ -60,15 +60,15 @@ enum FieldSize {
 
 enum SlotStatus {
   AVAILABLE
-  LOCKED   // Redis TTL 5 phút quản lý auto-release
+  LOCKED // Redis TTL 5 phút quản lý auto-release
   BOOKED
 }
 
 enum BookingStatus {
-  PENDING    // Chờ thanh toán / confirm
-  CONFIRMED  // Đã thanh toán + slot locked
-  COMPLETED  // Hoàn thành trận đấu
-  CANCELLED  // Đã hủy
+  PENDING // Chờ thanh toán / confirm
+  CONFIRMED // Đã thanh toán + slot locked
+  COMPLETED // Hoàn thành trận đấu
+  CANCELLED // Đã hủy
 }
 
 enum PaymentStatus {
@@ -91,27 +91,27 @@ enum PaymentMethod {
 // ============================================================
 
 model User {
-  id          String   @id @default(uuid())
-  clerkId     String?  @unique @map("clerk_id")
-  email       String   @unique
-  fullName    String   @map("full_name")
-  phone       String?
-  avatarUrl   String?  @map("avatar_url")
-  role        UserRole @default(PLAYER)
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id        String   @id @default(uuid())
+  clerkId   String?  @unique @map("clerk_id")
+  email     String   @unique
+  fullName  String   @map("full_name")
+  phone     String?
+  avatarUrl String?  @map("avatar_url")
+  role      UserRole @default(PLAYER)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  ownerships  VenueOwner[]
-  bookings    Booking[]
-  payments    Payment[]
-  reviews     Review[]
+  ownerships VenueOwner[]
+  bookings   Booking[]
+  payments   Payment[]
+  reviews    Review[]
 
   @@map("users")
 }
 
 model Venue {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   name        String
   description String?
   address     String
@@ -121,15 +121,15 @@ model Venue {
   longitude   Float?
   images      String[]
   amenities   String[]
-  isActive    Boolean  @default(false) @map("is_active") // ADMIN duyệt sân
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  isActive    Boolean   @default(false) @map("is_active") // ADMIN duyệt sân
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
   deletedAt   DateTime? @map("deleted_at")
 
-  owners      VenueOwner[]
-  fields      Field[]
-  bookings    Booking[]
-  reviews     Review[]
+  owners   VenueOwner[]
+  fields   Field[]
+  bookings Booking[]
+  reviews  Review[]
 
   @@index([city, district])
   @@index([isActive])
@@ -137,17 +137,17 @@ model Venue {
 }
 
 model Field {
-  id          String     @id @default(uuid())
-  venueId     String     @map("venue_id")
-  name        String     // "Sân 1", "Sân 5A", "Court A"
-  sportType   SportType  @map("sport_type")
-  size        FieldSize  @default(FIELD_7)
-  isActive    Boolean    @default(true) @map("is_active")
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt @map("updated_at")
+  id        String    @id @default(uuid())
+  venueId   String    @map("venue_id")
+  name      String // "Sân 1", "Sân 5A", "Court A"
+  sportType SportType @map("sport_type")
+  size      FieldSize @default(FIELD_7)
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
 
-  venue       Venue      @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  slots       VenueSlot[]
+  venue Venue       @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  slots VenueSlot[]
 
   @@index([venueId])
   @@index([sportType])
@@ -155,15 +155,15 @@ model Field {
 }
 
 model VenueOwner {
-  id        String            @id @default(uuid())
-  userId    String            @map("user_id")
-  venueId   String            @map("venue_id")
-  status    VenueOwnerStatus  @default(PENDING)
-  createdAt DateTime          @default(now()) @map("created_at")
-  updatedAt DateTime          @updatedAt @map("updated_at")
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  venueId   String           @map("venue_id")
+  status    VenueOwnerStatus @default(PENDING)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
 
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  venue     Venue             @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
 
   @@unique([userId, venueId])
   @@index([status])
@@ -171,18 +171,18 @@ model VenueOwner {
 }
 
 model VenueSlot {
-  id          String     @id @default(uuid())
-  fieldId     String     @map("field_id")
-  date        DateTime   @db.Date
-  startTime   DateTime   @map("start_time") @db.Time(0)
-  endTime     DateTime   @map("end_time") @db.Time(0)
-  pricePerSlot Decimal    @map("price_per_slot")  // changed to Decimal
-  status      SlotStatus @default(AVAILABLE)
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt @map("updated_at")
+  id           String     @id @default(uuid())
+  fieldId      String     @map("field_id")
+  date         DateTime   @db.Date
+  startTime    DateTime   @map("start_time") @db.Time(0)
+  endTime      DateTime   @map("end_time") @db.Time(0)
+  pricePerSlot Decimal    @map("price_per_slot") // changed to Decimal
+  status       SlotStatus @default(AVAILABLE)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
 
-  field         Field         @relation(fields: [fieldId], references: [id], onDelete: Cascade)
-  bookingSlots  BookingSlot[]
+  field        Field         @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  bookingSlots BookingSlot[]
 
   @@index([fieldId, date])
   @@index([fieldId, date, startTime])
@@ -192,22 +192,23 @@ model VenueSlot {
 }
 
 model Booking {
-  id            String        @id @default(uuid())
-  userId        String        @map("user_id")
-  venueId       String        @map("venue_id")
-  status        BookingStatus @default(PENDING)
-  totalPrice    Decimal       @map("total_price")   // changed to Decimal
-  note          String?
-  cancelReason  String?       @map("cancel_reason")
-  cancelledAt   DateTime?     @map("cancelled_at")
-  cancelledBy   String?       @map("cancelled_by")
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
+  id           String        @id @default(uuid())
+  userId       String        @map("user_id")
+  venueId      String        @map("venue_id")
+  status       BookingStatus @default(PENDING)
+  totalPrice   Decimal       @map("total_price") // changed to Decimal
+  note         String?
+  cancelReason String?       @map("cancel_reason")
+  cancelledAt  DateTime?     @map("cancelled_at")
+  cancelledBy  String?       @map("cancelled_by")
+  expiresAt    DateTime?     @map("expires_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
 
-  user          User          @relation(fields: [userId], references: [id])
-  venue         Venue         @relation(fields: [venueId], references: [id])
-  bookingSlots  BookingSlot[]
-  payment       Payment?
+  user         User          @relation(fields: [userId], references: [id])
+  venue        Venue         @relation(fields: [venueId], references: [id])
+  bookingSlots BookingSlot[]
+  payment      Payment?
 
   @@index([userId, status])
   @@index([venueId, status])
@@ -216,12 +217,12 @@ model Booking {
 }
 
 model BookingSlot {
-  id           String   @id @default(uuid())
-  bookingId    String   @map("booking_id")
-  venueSlotId  String   @map("venue_slot_id")
+  id          String @id @default(uuid())
+  bookingId   String @map("booking_id")
+  venueSlotId String @map("venue_slot_id")
 
-  booking      Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  venueSlot    VenueSlot @relation(fields: [venueSlotId], references: [id])
+  booking   Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  venueSlot VenueSlot @relation(fields: [venueSlotId], references: [id])
 
   @@unique([bookingId, venueSlotId])
   @@index([venueSlotId])
@@ -242,8 +243,8 @@ model Payment {
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
-  booking       Booking       @relation(fields: [bookingId], references: [id])
-  user          User          @relation(fields: [userId], references: [id])
+  booking Booking @relation(fields: [bookingId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([status])
@@ -254,13 +255,13 @@ model Review {
   id        String   @id @default(uuid())
   userId    String   @map("user_id")
   venueId   String   @map("venue_id")
-  rating    Int      // 1-5
+  rating    Int // 1-5
   comment   String?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  user      User     @relation(fields: [userId], references: [id])
-  venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
 
   @@unique([userId, venueId])
   @@index([venueId])
