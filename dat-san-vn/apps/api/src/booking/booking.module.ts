@@ -10,4 +10,4 @@ import { QueuesModule } from '../queues/queues.module.js';
   providers: [BookingService],
   exports: [BookingService],
 })
-export class BookingModule {}
+export class BookingModule { }

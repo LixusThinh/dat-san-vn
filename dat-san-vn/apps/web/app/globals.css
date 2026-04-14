@@ -1,30 +1,31 @@
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@import "tailwindcss";
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  --background: #f8f5ef;
+  --foreground: #102216;
+  --muted: #eef3ea;
+  --line: rgba(16, 34, 22, 0.12);
 }
 
 html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
+  scroll-behavior: smooth;
 }
 
 body {
   color: var(--foreground);
-  background: var(--background);
+  background:
+    radial-gradient(circle at top left, rgba(247, 180, 58, 0.18), transparent 22%),
+    radial-gradient(circle at top right, rgba(17, 80, 42, 0.15), transparent 28%),
+    linear-gradient(180deg, #fffdf8 0%, var(--background) 42%, #f4f8f2 100%);
+  position: relative;
 }
 
 * {
   box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+  border-color: var(--line);
 }
 
 a {
@@ -32,19 +33,42 @@ a {
   text-decoration: none;
 }
 
-.imgDark {
-  display: none;
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+img {
+  display: block;
+}
 
-  .imgLight {
-    display: none;
-  }
-  .imgDark {
-    display: unset;
+body::before {
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: fixed;
+  background-image:
+    linear-gradient(rgba(16, 34, 22, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 34, 22, 0.025) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(circle at center, black 35%, transparent 85%);
+}
+
+::selection {
+  background: rgba(17, 80, 42, 0.18);
+  color: #0b1a12;
+}
+
+.surface-panel {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 18px 60px rgba(16, 34, 22, 0.08);
+}
+
+@media (max-width: 640px) {
+  body::before {
+    background-size: 56px 56px;
   }
 }
