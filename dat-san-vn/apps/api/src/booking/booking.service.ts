@@ -5,10 +5,16 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
+import { BookingStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateBookingDto } from './dto/index.js';
 import { success } from '../common/helpers/api-response.helper.js';
 import { BookingExpirationService } from '../queues/booking-expiration/booking-expiration.service.js';
+
+interface ManagedBookingFilters {
+  status?: string;
+  date?: string;
+}
 
 @Injectable()
 export class BookingService {
@@ -125,7 +131,15 @@ export class BookingService {
   async cancelBooking(bookingId: string, userId: string, isOwnerCancel: boolean = false) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
-      include: { bookingSlots: true },
+      include: {
+        bookingSlots: {
+          include: {
+            venueSlot: {
+              select: { date: true, startTime: true },
+            },
+          },
+        },
+      },
     });
 
     if (!booking) throw new NotFoundException('Booking not found');
@@ -141,6 +155,14 @@ export class BookingService {
       });
       if (!ownership || ownership.status !== 'APPROVED') {
         throw new ForbiddenException('You do not have permission to cancel this booking as an owner');
+      }
+
+      if (booking.status === 'CONFIRMED') {
+        const bookingStart = this.getBookingStartDate(booking.bookingSlots);
+
+        if (bookingStart.getTime() - Date.now() <= 24 * 60 * 60 * 1000) {
+          throw new BadRequestException('Confirmed bookings can only be cancelled by owners more than 24 hours in advance');
+        }
       }
     }
 
@@ -188,5 +210,124 @@ export class BookingService {
     });
 
     return success(bookings, 'User bookings retrieved successfully');
+  }
+
+  async getManagedBookings(
+    userId: string,
+    role: UserRole,
+    filters: ManagedBookingFilters = {},
+  ) {
+    const where: Record<string, unknown> = {};
+    const normalizedStatus =
+      filters.status && filters.status !== 'ALL' ? filters.status : undefined;
+
+    if (normalizedStatus) {
+      if (!Object.values(BookingStatus).includes(normalizedStatus as BookingStatus)) {
+        throw new BadRequestException('Invalid booking status filter');
+      }
+
+      where.status = normalizedStatus;
+    }
+
+    const normalizedDate = this.parseDateFilter(filters.date);
+    if (normalizedDate) {
+      where.bookingSlots = {
+        some: {
+          venueSlot: {
+            date: normalizedDate,
+          },
+        },
+      };
+    }
+
+    if (role !== UserRole.ADMIN) {
+      where.venue = {
+        owners: {
+          some: {
+            userId,
+            status: 'APPROVED',
+          },
+        },
+      };
+    }
+
+    const bookings = await this.prisma.booking.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true,
+          },
+        },
+        venue: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            isActive: true,
+          },
+        },
+        bookingSlots: {
+          include: {
+            venueSlot: {
+              select: {
+                id: true,
+                date: true,
+                startTime: true,
+                endTime: true,
+                pricePerSlot: true,
+                field: {
+                  select: {
+                    id: true,
+                    name: true,
+                    sportType: true,
+                    size: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return success(bookings, 'Managed bookings retrieved successfully');
+  }
+
+  private parseDateFilter(date?: string) {
+    if (!date) return null;
+
+    const normalized = date === 'today' ? new Date() : new Date(date);
+
+    if (Number.isNaN(normalized.getTime())) {
+      throw new BadRequestException('Invalid booking date filter');
+    }
+
+    normalized.setHours(0, 0, 0, 0);
+    return normalized;
+  }
+
+  private getBookingStartDate(
+    bookingSlots: Array<{ venueSlot: { date: Date; startTime: Date } }>,
+  ) {
+    const firstSlot = bookingSlots[0]?.venueSlot;
+
+    if (!firstSlot) {
+      throw new BadRequestException('Booking has no slots to determine its start time');
+    }
+
+    const start = new Date(firstSlot.date);
+    start.setHours(
+      firstSlot.startTime.getHours(),
+      firstSlot.startTime.getMinutes(),
+      firstSlot.startTime.getSeconds(),
+      0,
+    );
+
+    return start;
   }
 }

@@ -136,7 +136,7 @@ export class VenueService {
   }
 
   async update(id: string, userId: string, dto: UpdateVenueDto) {
-    await this.validateOwnership(id, userId);
+    await this.validateManagementAccess(id, userId);
 
     const venue = await this.prisma.venue.update({
       where: { id },
@@ -156,7 +156,7 @@ export class VenueService {
   }
 
   async remove(id: string, userId: string) {
-    await this.validateOwnership(id, userId);
+    await this.validateManagementAccess(id, userId);
 
     await this.prisma.venue.update({
       where: { id },
@@ -243,6 +243,69 @@ export class VenueService {
 
     this.logger.log(`Admin ${adminId} rejected ${result.count} ownership(s) for venue ${venueId}`);
     return success(null, 'Ownership(s) rejected successfully');
+  }
+
+  async findMine(userId: string) {
+    const venues = await this.prisma.venue.findMany({
+      where: {
+        deletedAt: null,
+        owners: {
+          some: {
+            userId,
+            status: {
+              in: ['PENDING', 'APPROVED'],
+            },
+          },
+        },
+      },
+      include: {
+        fields: {
+          where: { isActive: true },
+          orderBy: { name: 'asc' },
+          select: {
+            id: true,
+            name: true,
+            sportType: true,
+            size: true,
+            isActive: true,
+          },
+        },
+        owners: {
+          where: { userId },
+          select: {
+            status: true,
+          },
+        },
+        _count: {
+          select: {
+            fields: true,
+            bookings: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return success(venues, 'Owned venues retrieved successfully');
+  }
+
+  async validateManagementAccess(venueId: string, userId: string): Promise<void> {
+    const venue = await this.prisma.venue.findUnique({
+      where: { id: venueId },
+      select: { id: true, deletedAt: true },
+    });
+
+    if (!venue || venue.deletedAt) {
+      throw new NotFoundException(`Venue with ID "${venueId}" not found`);
+    }
+
+    const ownership = await this.prisma.venueOwner.findUnique({
+      where: { userId_venueId: { userId, venueId } },
+    });
+
+    if (!ownership || ownership.status === 'REJECTED') {
+      throw new ForbiddenException('You do not have permission to manage this venue');
+    }
   }
 
   /**

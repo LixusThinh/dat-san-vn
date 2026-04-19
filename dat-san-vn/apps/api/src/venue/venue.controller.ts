@@ -45,6 +45,12 @@ export class VenueController {
     return this.venueService.findAll(query);
   }
 
+  @Get('my')
+  @Roles(UserRole.OWNER)
+  findMine(@CurrentUser() user: AuthUser) {
+    return this.venueService.findMine(user.id);
+  }
+
   @Get(':id')
   @Public()
   findOne(@Param('id', ParseUUIDPipe) id: string) {

@@ -24,7 +24,7 @@ export class FieldService {
   ) {}
 
   async create(venueId: string, userId: string, dto: CreateFieldDto) {
-    await this.venueService.validateOwnership(venueId, userId);
+    await this.venueService.validateManagementAccess(venueId, userId);
 
     const field = await this.prisma.field.create({
       data: {
@@ -80,7 +80,7 @@ export class FieldService {
 
   async update(id: string, userId: string, dto: UpdateFieldDto) {
     const field = await this.getFieldOrFail(id);
-    await this.venueService.validateOwnership(field.venueId, userId);
+    await this.venueService.validateManagementAccess(field.venueId, userId);
 
     const updated = await this.prisma.field.update({
       where: { id },
@@ -93,7 +93,7 @@ export class FieldService {
 
   async remove(id: string, userId: string) {
     const field = await this.getFieldOrFail(id);
-    await this.venueService.validateOwnership(field.venueId, userId);
+    await this.venueService.validateManagementAccess(field.venueId, userId);
 
     await this.prisma.field.update({
       where: { id },
@@ -145,4 +145,3 @@ export class FieldService {
     return field;
   }
 }
-

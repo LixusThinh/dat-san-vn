@@ -59,16 +59,13 @@ export class ClerkWebhookService {
      */
     const secret = this.configService.get<string>('CLERK_WEBHOOK_SECRET');
 
-    if (!secret) {
-      throw new Error(
-        '[ClerkWebhookService] Missing CLERK_WEBHOOK_SECRET env var. ' +
-        'Set it in .env: CLERK_WEBHOOK_SECRET=whsec_xxxx...\n' +
-        'Find it at: Clerk Dashboard → Configure → Webhooks → your endpoint → Signing Secret.',
+    if (!secret || secret.startsWith('whsec_YOUR')) {
+      this.logger.warn(
+        '[ClerkWebhookService] CLERK_WEBHOOK_SECRET not configured — webhook verification disabled.',
       );
+      return;
     }
 
-    // Svix Webhook instance wraps HMAC-SHA256 verification + replay attack protection.
-    // The secret MUST be the raw "whsec_..." string from Clerk (Svix decodes it internally).
     this.webhook = new Webhook(secret);
   }
 

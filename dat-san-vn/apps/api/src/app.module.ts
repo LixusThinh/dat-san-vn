@@ -11,6 +11,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { UserModule } from './user/user.module.js';
 import { clerkConfig } from './config/clerk.config.js';
 import { QueuesModule } from './queues/queues.module.js';
+import { AdminModule } from './admin/admin.module.js';
 
 /**
  * AppModule — root module.
@@ -26,6 +27,7 @@ import { QueuesModule } from './queues/queues.module.js';
  *  - VenueModule    → Venue CRUD at /api/venues
  *  - FieldModule    → Field CRUD at /api/venues/:id/fields + /api/fields/:id
  *  - BookingModule  → Booking logic at /api/bookings
+ *  - AdminModule    → Admin management at /api/admin (ADMIN role only)
  */
 @Module({
   imports: [
@@ -66,6 +68,9 @@ import { QueuesModule } from './queues/queues.module.js';
 
     // Background Jobs
     QueuesModule,
+
+    // Admin management
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

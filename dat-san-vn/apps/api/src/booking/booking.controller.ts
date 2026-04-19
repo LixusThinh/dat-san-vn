@@ -2,8 +2,10 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Param,
   Body,
+  Query,
   ParseUUIDPipe,
   UseGuards,
   HttpCode,
@@ -35,10 +37,30 @@ export class BookingController {
     return this.bookingService.getMyBookings(user.id);
   }
 
+  @Get()
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  getManagedBookings(
+    @CurrentUser() user: AuthUser,
+    @Query('status') status?: string,
+    @Query('date') date?: string,
+  ) {
+    return this.bookingService.getManagedBookings(user.id, user.role, { status, date });
+  }
+
   @Post(':id/confirm')
   @Roles(UserRole.OWNER)
   @HttpCode(HttpStatus.OK)
   confirmBooking(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.bookingService.confirmBooking(id, user.id);
+  }
+
+  @Patch(':id/confirm')
+  @Roles(UserRole.OWNER)
+  @HttpCode(HttpStatus.OK)
+  confirmBookingViaPatch(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: AuthUser,
   ) {
@@ -62,6 +84,16 @@ export class BookingController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: AuthUser,
   ) {
-    return this.bookingService.cancelBooking(id, user.id, false);
+    return this.bookingService.cancelBooking(id, user.id, user.role === UserRole.OWNER);
+  }
+
+  @Patch(':id/cancel')
+  @Roles(UserRole.PLAYER, UserRole.OWNER, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  cancelBookingViaPatch(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.bookingService.cancelBooking(id, user.id, user.role === UserRole.OWNER);
   }
 }
