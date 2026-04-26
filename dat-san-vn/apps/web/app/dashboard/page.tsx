@@ -1,11 +1,9 @@
-'use client';
-
-import { UserButton } from '@clerk/nextjs';
+// apps/web/app/dashboard/page.tsx
 import { auth, currentUser } from '@clerk/nextjs/server';
+import { UserButton } from '@clerk/nextjs';
 import { redirect } from 'next/navigation';
 
 export default async function DashboardPage() {
-    // Server-side check
     const { userId } = await auth();
     const user = await currentUser();
 
