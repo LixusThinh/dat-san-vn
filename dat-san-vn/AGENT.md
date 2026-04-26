@@ -130,6 +130,48 @@ ADMIN  → Duyệt OWNER request, quản lý toàn bộ hệ thống
 2. `app/(main)/admin/` — Admin Panel
 3. Admin API endpoints (BE)
 
+## Docker Dev Environment
+
+### Start toàn bộ stack
+```powershell
+docker compose up -d
+```
+
+### Ports
+- **API (NestJS)**: http://localhost:3000/api
+- **Web (Next.js)**: http://localhost:3001
+- **PostgreSQL**: localhost:5432
+- **Redis**: localhost:6379
+
+### Rebuild sau khi thêm package mới
+```powershell
+docker compose build api   # hoặc web
+docker compose up -d
+```
+
+### Prisma migrate
+```powershell
+docker compose exec -T api pnpm --filter api exec prisma migrate deploy
+```
+
+### Prisma generate (sau khi sửa schema)
+```powershell
+docker compose exec -T api pnpm --filter api exec prisma generate
+```
+
+### Reset DB
+```powershell
+docker compose down -v
+docker compose up -d
+docker compose exec -T api pnpm --filter api exec prisma migrate deploy
+```
+
+### Xem logs
+```powershell
+docker compose logs -f api
+docker compose logs -f web
+```
+
 ## Quy tắc khi làm task
 
 1. **Không thêm tính năng ngoài spec** — làm đúng những gì task yêu cầu

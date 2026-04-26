@@ -1,18 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, Search, Shield, Ticket } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { Menu, Search } from "lucide-react";
+import { useUser, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const navigation = [
@@ -22,6 +13,8 @@ const navigation = [
 ];
 
 export function Navbar() {
+  const { isSignedIn } = useUser();
+
   return (
     <header className="sticky top-0 z-40 px-4 py-4 sm:px-6 lg:px-8">
       <div className="surface-panel mx-auto flex max-w-7xl items-center justify-between rounded-full border border-white/70 px-4 py-3 sm:px-6">
@@ -50,40 +43,18 @@ export function Navbar() {
               Tìm sân ngay
             </Link>
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-3 rounded-full border border-white/70 bg-white/80 px-2 py-2 pr-4 text-left shadow-sm outline-none transition hover:bg-white">
-                <Avatar className="h-10 w-10">
-                  <AvatarFallback>NV</AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="text-sm font-semibold text-slate-950">Người dùng demo</div>
-                  <div className="text-xs text-slate-500">Clerk-ready menu</div>
-                </div>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Tài khoản</DropdownMenuLabel>
-              <DropdownMenuItem asChild>
-                <Link href="/bookings">
-                  <Ticket className="h-4 w-4" />
-                  Lịch đặt của tôi
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/sign-in">
-                  <Shield className="h-4 w-4" />
-                  Nối Clerk / Auth
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <div className="px-3 py-2">
-                <Badge variant="outline" className="bg-slate-50">
-                  Frontend Core
-                </Badge>
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {!isSignedIn ? (
+            <div className="flex items-center gap-2">
+              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+                <Link href="/sign-in">Đăng nhập</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href="/sign-up">Đăng ký</Link>
+              </Button>
+            </div>
+          ) : (
+            <UserButton appearance={{ elements: { userButtonAvatarBox: "h-10 w-10" } }} />
+          )}
         </div>
 
         <Sheet>
@@ -105,15 +76,22 @@ export function Navbar() {
               ))}
             </div>
             <div className="rounded-[28px] bg-emerald-50 p-5">
-              <div className="flex items-center gap-3">
-                <Avatar>
-                  <AvatarFallback>NV</AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="font-semibold text-slate-950">Clerk user menu</div>
-                  <div className="text-sm text-slate-600">Sẵn chỗ để thay bằng UserButton ở phase auth.</div>
+              {!isSignedIn ? (
+                <div className="flex flex-col gap-3">
+                  <div className="mb-1 font-semibold text-slate-950">Thành viên</div>
+                  <Button asChild variant="outline" className="w-full justify-start">
+                    <Link href="/sign-in">Đăng nhập</Link>
+                  </Button>
+                  <Button asChild className="w-full justify-start">
+                    <Link href="/sign-up">Đăng ký mới</Link>
+                  </Button>
                 </div>
-              </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  <div className="font-semibold text-slate-950">Tài khoản của bạn</div>
+                  <UserButton showName appearance={{ elements: { rootBox: "w-full" } }} />
+                </div>
+              )}
             </div>
           </SheetContent>
         </Sheet>

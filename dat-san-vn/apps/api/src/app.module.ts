@@ -12,6 +12,7 @@ import { UserModule } from './user/user.module.js';
 import { clerkConfig } from './config/clerk.config.js';
 import { QueuesModule } from './queues/queues.module.js';
 import { AdminModule } from './admin/admin.module.js';
+import { ReviewModule } from './review/review.module';
 
 /**
  * AppModule — root module.
@@ -71,6 +72,8 @@ import { AdminModule } from './admin/admin.module.js';
 
     // Admin management
     AdminModule,
+
+    ReviewModule,
   ],
   controllers: [AppController],
   providers: [AppService],

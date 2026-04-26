@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { VenueGallery } from "@/components/venue/venue-gallery";
 import { VenueMap } from "@/components/venue/venue-map";
+import { VenueReviews } from "@/components/venue/venue-reviews";
 import { formatCurrency } from "@/lib/utils";
 
 type VenueDetailPageProps = {
@@ -131,6 +132,11 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Reviews Section */}
+        <div className="mt-12 max-w-3xl">
+          <VenueReviews venueId={venue.id} />
         </div>
       </div>
     </div>

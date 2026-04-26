@@ -23,7 +23,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ============================================================
@@ -123,6 +122,8 @@ model Venue {
   images      String[]
   amenities   String[]
   isActive    Boolean   @default(false) @map("is_active") // ADMIN duyệt sân
+  rating      Float     @default(0.0)
+  reviewCount Int       @default(0) @map("review_count")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
   deletedAt   DateTime? @map("deleted_at")
@@ -210,6 +211,7 @@ model Booking {
   venue        Venue         @relation(fields: [venueId], references: [id])
   bookingSlots BookingSlot[]
   payment      Payment?
+  review       Review?
 
   @@index([userId, status])
   @@index([venueId, status])
@@ -256,15 +258,16 @@ model Review {
   id        String   @id @default(uuid())
   userId    String   @map("user_id")
   venueId   String   @map("venue_id")
+  bookingId String   @unique @map("booking_id")
   rating    Int // 1-5
   comment   String?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  user  User  @relation(fields: [userId], references: [id])
-  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+  venue   Venue   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  booking Booking @relation(fields: [bookingId], references: [id])
 
-  @@unique([userId, venueId])
   @@index([venueId])
   @@index([rating])
   @@map("reviews")

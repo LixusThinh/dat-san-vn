@@ -1,13 +1,13 @@
-import { SignIn } from "@clerk/nextjs";
+import { SignUp } from "@clerk/nextjs";
 
 export const metadata = {
-  title: "Đăng nhập",
+  title: "Đăng ký",
 };
 
-export default function SignInPage() {
+export default function SignUpPage() {
   return (
     <div className="flex w-full items-center justify-center py-12">
-      <SignIn />
+      <SignUp />
     </div>
   );
 }
