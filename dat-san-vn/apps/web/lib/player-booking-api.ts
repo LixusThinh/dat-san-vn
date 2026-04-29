@@ -152,27 +152,12 @@ export async function getPlayerBookings(token: string) {
   return bookings.map(mapPlayerBooking);
 }
 
-export async function createPlayerBooking(data: CreatePlayerBookingInput) {
-  const response = await fetch("/bookings", {
+export function createPlayerBooking(token: string, data: CreatePlayerBookingInput) {
+  return requestApi<RawPlayerBooking>("/bookings", {
+    token,
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(data),
+    body: data,
   });
-
-  if (!response.ok) {
-    const errorPayload = (await response.json().catch(() => null)) as {
-      message?: string | string[];
-    } | null;
-    const message = Array.isArray(errorPayload?.message)
-      ? errorPayload.message.join(", ")
-      : errorPayload?.message;
-
-    throw new Error(message || "Không thể tạo booking");
-  }
-
-  const payload = (await response.json()) as ApiEnvelope<RawPlayerBooking>;
-  return unwrapApiResponse(payload);
 }
 
 export function cancelPlayerBooking(token: string, bookingId: string, reason?: string) {

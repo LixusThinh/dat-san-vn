@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CalendarClock, Clock3, Wallet } from "lucide-react";
@@ -33,6 +34,7 @@ export function BookingSheet({
   pricePerSlot: number;
 }>) {
   const router = useRouter();
+  const { getToken } = useAuth();
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -49,7 +51,12 @@ export function BookingSheet({
     setIsSubmitting(true);
 
     try {
-      const booking = await createPlayerBooking({ fieldId, timeSlotId });
+      const token = await getToken();
+      if (!token) {
+        throw new Error("Vui lòng đăng nhập để đặt sân");
+      }
+
+      const booking = await createPlayerBooking(token, { fieldId, timeSlotId });
 
       setOpen(false);
       toast({
