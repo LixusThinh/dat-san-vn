@@ -20,7 +20,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "clear:bookings": "tsx scripts/clear-all-bookings.ts",
-    "clear:user-bookings": "tsx scripts/clear-user-bookings.ts"
+    "clear:user-bookings": "tsx scripts/clear-user-bookings.ts",
+    "seed:clerk": "tsx scripts/seed-clerk-users.ts"
   },
   "dependencies": {
     "@clerk/backend": "^3.2.8",
