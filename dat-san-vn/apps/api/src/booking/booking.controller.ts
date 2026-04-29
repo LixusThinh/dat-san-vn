@@ -12,7 +12,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { BookingService } from './booking.service.js';
-import { CreateBookingDto } from './dto/index.js';
+import { CancelBookingDto, CreateBookingDto } from './dto/index.js';
 import { ClerkAuthGuard } from '../auth/guards/clerk-auth.guard.js';
 import { RolesGuard } from '../common/guards/roles.guard.js';
 import { Roles } from '../common/decorators/roles.decorator.js';
@@ -45,6 +45,13 @@ export class BookingController {
     @Query('date') date?: string,
   ) {
     return this.bookingService.getManagedBookings(user.id, user.role, { status, date });
+  }
+
+  @Post('cancel')
+  @Roles(UserRole.PLAYER)
+  @HttpCode(HttpStatus.OK)
+  cancelMyBooking(@Body() dto: CancelBookingDto, @CurrentUser() user: AuthUser) {
+    return this.bookingService.cancelMyBooking(dto, user.id);
   }
 
   @Post(':id/confirm')

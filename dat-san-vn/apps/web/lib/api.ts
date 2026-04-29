@@ -71,6 +71,16 @@ export async function getVenueDetail(id: string): Promise<VenueDetail | null> {
   return response.data;
 }
 
+export async function getFieldAvailableSlots(fieldId: string, date: string) {
+  const response = await fetchApi(`/fields/${fieldId}/slots?date=${date}`, []);
+  return response.data as Array<{
+    id: string;
+    startTime: string;
+    endTime: string;
+    pricePerSlot: number | string;
+  }>;
+}
+
 export async function getMyBookings() {
   const response = await fetchApi("/bookings/me", bookingItems);
   return response.data;

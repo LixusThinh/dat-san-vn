@@ -1,79 +1,43 @@
-version: '3.9'
 services:
   postgres:
     image: postgres:16-alpine
     container_name: datsanvn_postgres
     restart: unless-stopped
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: datsanvn
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U postgres -d datsanvn"]
+      interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - datsanvn-network
+
   redis:
     image: redis:7-alpine
     container_name: datsanvn_redis
     restart: unless-stopped
     ports:
       - "6379:6379"
-    volumes:
-      - redis_data:/data
+    command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
-  api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile.dev
-    container_name: datsanvn_api
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/apps/api/node_modules
-    environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/datsanvn
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-    env_file:
-      - apps/api/.env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    command: pnpm --filter api dev
-  web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile.dev
-    container_name: datsanvn_web
-    restart: unless-stopped
-    ports:
-      - "3001:3001"
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/apps/web/node_modules
-    environment:
-      WATCHPACK_POLLING: "true"
-      CHOKIDAR_USEPOLLING: "true"
-    env_file:
-      - apps/web/.env.local
-    depends_on:
-      - api
-    command: pnpm --filter web dev
+    networks:
+      - datsanvn-network
+
 volumes:
   postgres_data:
-  redis_data:
+
+networks:
+  datsanvn-network:
+    driver: bridge

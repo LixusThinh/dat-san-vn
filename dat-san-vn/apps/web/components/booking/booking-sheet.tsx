@@ -1,6 +1,7 @@
 "use client";
 
-import { startTransition, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { CalendarClock, Clock3, Wallet } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -13,35 +14,59 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { createPlayerBooking } from "@/lib/player-booking-api";
 import { formatCurrency } from "@/lib/utils";
 
 export function BookingSheet({
   venueName,
+  fieldId,
   fieldName,
+  timeSlotId,
   firstSlot,
   pricePerSlot,
 }: Readonly<{
   venueName: string;
+  fieldId: string;
   fieldName: string;
+  timeSlotId?: string;
   firstSlot: string;
   pricePerSlot: number;
 }>) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleBooking = () => {
-    startTransition(() => {
-      setIsSubmitting(true);
+  const handleBooking = async () => {
+    if (!timeSlotId) {
+      toast({
+        title: "Chưa có slot khả dụng",
+        description: "Sân này hiện chưa có khung giờ trống để tạo booking.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-      setTimeout(() => {
-        setIsSubmitting(false);
-        setOpen(false);
-        toast({
-          title: "Đã giữ chỗ tạm thời",
-          description: `Sheet booking cho ${venueName} đã hoạt động. Phase sau chỉ cần nối API create booking.`,
-        });
-      }, 700);
-    });
+    setIsSubmitting(true);
+
+    try {
+      const booking = await createPlayerBooking({ fieldId, timeSlotId });
+
+      setOpen(false);
+      toast({
+        title: "Đặt sân thành công!",
+        description: `Booking #${booking.id} đã được tạo. Vui lòng thanh toán trong 15 phút.`,
+      });
+      router.push("/bookings");
+      router.refresh();
+    } catch (error) {
+      toast({
+        title: "Lỗi",
+        description: error instanceof Error ? error.message : "Không thể tạo booking",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -53,7 +78,7 @@ export function BookingSheet({
         <SheetHeader>
           <SheetTitle>Booking Sheet</SheetTitle>
           <SheetDescription>
-            Khung UI này đã sẵn để nối create booking API theo format `ApiResponse` ở phase backend integration.
+            Kiểm tra lại sân và khung giờ trước khi xác nhận booking.
           </SheetDescription>
         </SheetHeader>
 
@@ -84,8 +109,8 @@ export function BookingSheet({
           <Button variant="secondary" onClick={() => setOpen(false)}>
             Để sau
           </Button>
-          <Button onClick={handleBooking} disabled={isSubmitting}>
-            {isSubmitting ? "Đang giữ chỗ..." : "Giữ chỗ tạm thời"}
+          <Button onClick={handleBooking} disabled={isSubmitting || !timeSlotId}>
+            {isSubmitting ? "Đang tạo booking..." : "Xác nhận đặt sân"}
           </Button>
         </SheetFooter>
       </SheetContent>

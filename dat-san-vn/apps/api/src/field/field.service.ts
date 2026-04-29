@@ -13,6 +13,10 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateFieldDto, UpdateFieldDto } from './dto/index.js';
 import { success } from '../common/helpers/api-response.helper.js';
 import { VenueService } from '../venue/venue.service.js';
+import {
+  assertOptimisticUpdate,
+  withOptimisticLock,
+} from '../common/optimistic-lock.guard.js';
 
 @Injectable()
 export class FieldService {
@@ -65,7 +69,13 @@ export class FieldService {
       where: { id },
       include: {
         venue: {
-          select: { id: true, name: true, address: true, city: true, district: true },
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            city: true,
+            district: true,
+          },
         },
         _count: { select: { slots: true } },
       },
@@ -82,10 +92,17 @@ export class FieldService {
     const field = await this.getFieldOrFail(id);
     await this.venueService.validateManagementAccess(field.venueId, userId);
 
-    const updated = await this.prisma.field.update({
-      where: { id },
-      data: { ...dto },
-    });
+    const updated = await withOptimisticLock(async () => {
+      const result = await this.prisma.field.updateMany({
+        where: { id, version: field.version, isActive: true },
+        data: { ...dto, version: { increment: 1 } },
+      });
+      assertOptimisticUpdate(result);
+
+      return this.prisma.field.findUniqueOrThrow({
+        where: { id },
+      });
+    }, field.version);
 
     this.logger.log(`Field updated: ${id} by user: ${userId}`);
     return success(updated, 'Field updated successfully');
@@ -95,10 +112,13 @@ export class FieldService {
     const field = await this.getFieldOrFail(id);
     await this.venueService.validateManagementAccess(field.venueId, userId);
 
-    await this.prisma.field.update({
-      where: { id },
-      data: { isActive: false },
-    });
+    await withOptimisticLock(async () => {
+      const result = await this.prisma.field.updateMany({
+        where: { id, version: field.version, isActive: true },
+        data: { isActive: false, version: { increment: 1 } },
+      });
+      assertOptimisticUpdate(result);
+    }, field.version);
 
     this.logger.log(`Field deactivated: ${id} by user: ${userId}`);
     return success(null, 'Field deleted successfully');
@@ -135,7 +155,7 @@ export class FieldService {
   private async getFieldOrFail(id: string) {
     const field = await this.prisma.field.findUnique({
       where: { id },
-      select: { id: true, venueId: true, isActive: true },
+      select: { id: true, venueId: true, isActive: true, version: true },
     });
 
     if (!field || !field.isActive) {

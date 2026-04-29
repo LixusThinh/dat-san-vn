@@ -1,0 +1,187 @@
+import type { ApiResponse, BookingStatus, FieldSize, SportType } from "@dat-san-vn/types";
+import {
+  combineDateAndTime,
+  formatDateLabel,
+  formatTimeRange,
+  isMoreThanHoursAway,
+  toNumber,
+} from "@/lib/utils";
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000/api";
+
+type ApiEnvelope<T> = ApiResponse<T> | T;
+
+interface RawPlayerBooking {
+  id: string;
+  status: BookingStatus;
+  totalPrice: number | string;
+  refundAmount?: number | string | null;
+  cancelReason?: string | null;
+  cancelledAt?: string | null;
+  createdAt: string;
+  venue: {
+    id: string;
+    name: string;
+    address: string;
+  };
+  bookingSlots: Array<{
+    venueSlot: {
+      id: string;
+      date: string;
+      startTime: string;
+      endTime: string;
+      field?: {
+        id?: string;
+        name: string;
+        sportType?: SportType;
+        size?: FieldSize;
+      } | null;
+    };
+  }>;
+}
+
+export interface PlayerBooking {
+  id: string;
+  venueId: string;
+  venueName: string;
+  venueAddress: string;
+  fieldName: string;
+  bookingDate: string;
+  bookingTime: string;
+  startsAt: string | null;
+  status: BookingStatus;
+  totalPrice: number;
+  refundAmount: number;
+  refundPercent: 0 | 50 | 100;
+  canCancel: boolean;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+}
+
+interface RequestApiOptions extends Omit<RequestInit, "body"> {
+  token?: string | null;
+  body?: unknown;
+}
+
+export interface CreatePlayerBookingInput {
+  fieldId: string;
+  timeSlotId: string;
+  note?: string;
+}
+
+function unwrapApiResponse<T>(payload: ApiEnvelope<T>): T {
+  if (payload && typeof payload === "object" && "data" in payload && "statusCode" in payload) {
+    return payload.data as T;
+  }
+
+  return payload as T;
+}
+
+async function requestApi<T>(path: string, { token, body, headers, ...init }: RequestApiOptions = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    cache: "no-store",
+    headers: {
+      ...(body ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(headers ?? {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+
+  if (!response.ok) {
+    let message = `API request failed with status ${response.status}`;
+
+    try {
+      const errorPayload = (await response.json()) as { message?: string | string[] };
+      if (Array.isArray(errorPayload.message)) {
+        message = errorPayload.message.join(", ");
+      } else if (typeof errorPayload.message === "string") {
+        message = errorPayload.message;
+      }
+    } catch {
+      // Use status fallback when the API does not return JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  const payload = (await response.json()) as ApiEnvelope<T>;
+  return unwrapApiResponse(payload);
+}
+
+function getRefundPercent(startsAt: string | null): 0 | 50 | 100 {
+  if (!startsAt) return 0;
+  if (isMoreThanHoursAway(startsAt, 12)) return 100;
+  if (isMoreThanHoursAway(startsAt, 6)) return 50;
+  return 0;
+}
+
+function mapPlayerBooking(booking: RawPlayerBooking): PlayerBooking {
+  const firstSlot = [...booking.bookingSlots]
+    .map((bookingSlot) => bookingSlot.venueSlot)
+    .sort((a, b) => {
+      const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      return a.startTime.localeCompare(b.startTime);
+    })[0];
+  const startsAt = firstSlot ? combineDateAndTime(firstSlot.date, firstSlot.startTime) : null;
+
+  return {
+    id: booking.id,
+    venueId: booking.venue.id,
+    venueName: booking.venue.name,
+    venueAddress: booking.venue.address,
+    fieldName: firstSlot?.field?.name ?? "Chưa có sân con",
+    bookingDate: firstSlot ? formatDateLabel(firstSlot.date) : "Chưa có ngày",
+    bookingTime: firstSlot ? formatTimeRange(firstSlot.startTime, firstSlot.endTime) : "Chưa có giờ",
+    startsAt,
+    status: booking.status,
+    totalPrice: toNumber(booking.totalPrice),
+    refundAmount: toNumber(booking.refundAmount),
+    refundPercent: getRefundPercent(startsAt),
+    canCancel: ["PENDING", "CONFIRMED"].includes(booking.status),
+    cancelledAt: booking.cancelledAt ?? null,
+    cancelReason: booking.cancelReason ?? null,
+  };
+}
+
+export async function getPlayerBookings(token: string) {
+  const bookings = await requestApi<RawPlayerBooking[]>("/bookings/me", { token });
+  return bookings.map(mapPlayerBooking);
+}
+
+export async function createPlayerBooking(data: CreatePlayerBookingInput) {
+  const response = await fetch("/bookings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const errorPayload = (await response.json().catch(() => null)) as {
+      message?: string | string[];
+    } | null;
+    const message = Array.isArray(errorPayload?.message)
+      ? errorPayload.message.join(", ")
+      : errorPayload?.message;
+
+    throw new Error(message || "Không thể tạo booking");
+  }
+
+  const payload = (await response.json()) as ApiEnvelope<RawPlayerBooking>;
+  return unwrapApiResponse(payload);
+}
+
+export function cancelPlayerBooking(token: string, bookingId: string, reason?: string) {
+  return requestApi("/bookings/cancel", {
+    token,
+    method: "POST",
+    body: {
+      bookingId,
+      ...(reason?.trim() ? { reason: reason.trim() } : {}),
+    },
+  });
+}

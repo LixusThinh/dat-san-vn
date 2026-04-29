@@ -17,6 +17,10 @@ import { success } from '../common/helpers/api-response.helper.js';
 import { CLERK_CLIENT } from '../config/clerk.config.js';
 import type { ClerkClient } from '@clerk/backend';
 import type { SportType } from '@dat-san-vn/types';
+import {
+  assertOptimisticUpdate,
+  withOptimisticLock,
+} from '../common/optimistic-lock.guard.js';
 
 @Injectable()
 export class VenueService {
@@ -53,7 +57,9 @@ export class VenueService {
       },
       include: {
         owners: {
-          include: { user: { select: { id: true, fullName: true, email: true } } },
+          include: {
+            user: { select: { id: true, fullName: true, email: true } },
+          },
         },
       },
     });
@@ -138,18 +144,31 @@ export class VenueService {
   async update(id: string, userId: string, dto: UpdateVenueDto) {
     await this.validateManagementAccess(id, userId);
 
-    const venue = await this.prisma.venue.update({
+    const currentVenue = await this.prisma.venue.findUniqueOrThrow({
       where: { id },
-      data: {
-        ...dto,
-      },
-      include: {
-        fields: {
-          where: { isActive: true },
-          select: { id: true, name: true, sportType: true },
-        },
-      },
+      select: { version: true },
     });
+
+    const venue = await withOptimisticLock(async () => {
+      const result = await this.prisma.venue.updateMany({
+        where: { id, version: currentVenue.version, deletedAt: null },
+        data: {
+          ...dto,
+          version: { increment: 1 },
+        },
+      });
+      assertOptimisticUpdate(result);
+
+      return this.prisma.venue.findUniqueOrThrow({
+        where: { id },
+        include: {
+          fields: {
+            where: { isActive: true },
+            select: { id: true, name: true, sportType: true },
+          },
+        },
+      });
+    }, currentVenue.version);
 
     this.logger.log(`Venue updated: ${id} by user: ${userId}`);
     return success(venue, 'Venue updated successfully');
@@ -158,10 +177,22 @@ export class VenueService {
   async remove(id: string, userId: string) {
     await this.validateManagementAccess(id, userId);
 
-    await this.prisma.venue.update({
+    const currentVenue = await this.prisma.venue.findUniqueOrThrow({
       where: { id },
-      data: { deletedAt: new Date(), isActive: false },
+      select: { version: true },
     });
+
+    await withOptimisticLock(async () => {
+      const result = await this.prisma.venue.updateMany({
+        where: { id, version: currentVenue.version, deletedAt: null },
+        data: {
+          deletedAt: new Date(),
+          isActive: false,
+          version: { increment: 1 },
+        },
+      });
+      assertOptimisticUpdate(result);
+    }, currentVenue.version);
 
     this.logger.log(`Venue soft-deleted: ${id} by user: ${userId}`);
     return success(null, 'Venue deleted successfully');
@@ -187,7 +218,9 @@ export class VenueService {
         throw new BadRequestException('Ownership request is already pending');
       }
       if (existing.status === 'APPROVED') {
-        throw new BadRequestException('You are already an approved owner for this venue');
+        throw new BadRequestException(
+          'You are already an approved owner for this venue',
+        );
       }
     }
 
@@ -197,7 +230,9 @@ export class VenueService {
       create: { userId, venueId, status: 'PENDING' },
     });
 
-    this.logger.log(`Ownership requested for venue ${venueId} by user ${userId}`);
+    this.logger.log(
+      `Ownership requested for venue ${venueId} by user ${userId}`,
+    );
     return success(ownership, 'Ownership request submitted successfully', 201);
   }
 
@@ -216,10 +251,14 @@ export class VenueService {
     });
 
     if (result.count === 0) {
-      throw new BadRequestException('No pending ownership requests found for this venue');
+      throw new BadRequestException(
+        'No pending ownership requests found for this venue',
+      );
     }
 
-    this.logger.log(`Admin ${adminId} approved ${result.count} ownership(s) for venue ${venueId}`);
+    this.logger.log(
+      `Admin ${adminId} approved ${result.count} ownership(s) for venue ${venueId}`,
+    );
     return success(null, 'Ownership(s) approved successfully');
   }
 
@@ -238,10 +277,14 @@ export class VenueService {
     });
 
     if (result.count === 0) {
-      throw new BadRequestException('No pending ownership requests found for this venue');
+      throw new BadRequestException(
+        'No pending ownership requests found for this venue',
+      );
     }
 
-    this.logger.log(`Admin ${adminId} rejected ${result.count} ownership(s) for venue ${venueId}`);
+    this.logger.log(
+      `Admin ${adminId} rejected ${result.count} ownership(s) for venue ${venueId}`,
+    );
     return success(null, 'Ownership(s) rejected successfully');
   }
 
@@ -289,7 +332,10 @@ export class VenueService {
     return success(venues, 'Owned venues retrieved successfully');
   }
 
-  async validateManagementAccess(venueId: string, userId: string): Promise<void> {
+  async validateManagementAccess(
+    venueId: string,
+    userId: string,
+  ): Promise<void> {
     const venue = await this.prisma.venue.findUnique({
       where: { id: venueId },
       select: { id: true, deletedAt: true },
@@ -304,7 +350,9 @@ export class VenueService {
     });
 
     if (!ownership || ownership.status === 'REJECTED') {
-      throw new ForbiddenException('You do not have permission to manage this venue');
+      throw new ForbiddenException(
+        'You do not have permission to manage this venue',
+      );
     }
   }
 
@@ -327,7 +375,9 @@ export class VenueService {
     });
 
     if (!ownership || ownership.status !== 'APPROVED') {
-      throw new ForbiddenException('You are not an approved owner of this venue');
+      throw new ForbiddenException(
+        'You are not an approved owner of this venue',
+      );
     }
   }
 }

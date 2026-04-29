@@ -1,21 +1,55 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Clock3, MapPin, Phone, ShieldCheck, Star } from "lucide-react";
-import { getVenueDetail } from "@/lib/api";
+import { getFieldAvailableSlots, getVenueDetail } from "@/lib/api";
 import { BookingSheet } from "@/components/booking/booking-sheet";
+import VenueReviewsSection from "@/components/review/venue-reviews-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { VenueGallery } from "@/components/venue/venue-gallery";
 import { VenueMap } from "@/components/venue/venue-map";
-import { VenueReviews } from "@/components/venue/venue-reviews";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatTimeRange, toNumber } from "@/lib/utils";
 
 type VenueDetailPageProps = {
   params: Promise<{
     id: string;
   }>;
 };
+
+type BookableSlot = {
+  id?: string;
+  startTime?: string;
+  endTime?: string;
+  pricePerSlot?: number | string;
+};
+
+type BookableField = typeof firstFieldFallback & {
+  slots?: BookableSlot[];
+  availableSlots?: Array<string | BookableSlot>;
+};
+
+const firstFieldFallback = {
+  id: "",
+  name: "Chưa có sân con",
+  pricePerSlot: 0,
+  availableSlots: [] as Array<string | BookableSlot>,
+};
+
+function getSlotLabel(slot?: string | BookableSlot) {
+  if (!slot) return "Chưa có slot khả dụng";
+  if (typeof slot === "string") return slot;
+  if (slot.startTime && slot.endTime) return formatTimeRange(slot.startTime, slot.endTime);
+  return slot.startTime ?? "Chưa có slot khả dụng";
+}
+
+function getFirstBookableSlot(field: BookableField) {
+  const rawSlot = field.slots?.[0] ?? field.availableSlots?.[0];
+  return {
+    id: typeof rawSlot === "string" ? undefined : rawSlot?.id,
+    label: getSlotLabel(rawSlot),
+  };
+}
 
 export default async function VenueDetailPage({ params }: VenueDetailPageProps) {
   const { id } = await params;
@@ -25,7 +59,14 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
     notFound();
   }
 
-  const firstField = venue.fields[0];
+  const firstField = (venue.fields[0] ?? firstFieldFallback) as BookableField;
+  const today = new Date().toISOString().slice(0, 10);
+  const liveSlots = firstField.id ? await getFieldAvailableSlots(firstField.id, today).catch(() => []) : [];
+  const firstBookableSlot = getFirstBookableSlot({
+    ...firstField,
+    slots: liveSlots.length > 0 ? liveSlots : firstField.slots,
+  });
+  const bookingPrice = toNumber(liveSlots[0]?.pricePerSlot ?? firstField.pricePerSlot);
 
   return (
     <div className="px-4 pb-8 pt-6 sm:px-6 lg:px-8">
@@ -61,9 +102,11 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
                 </div>
                 <BookingSheet
                   venueName={venue.name}
+                  fieldId={firstField.id}
                   fieldName={firstField.name}
-                  firstSlot={firstField.availableSlots[0]}
-                  pricePerSlot={firstField.pricePerSlot}
+                  timeSlotId={firstBookableSlot.id}
+                  firstSlot={firstBookableSlot.label}
+                  pricePerSlot={bookingPrice}
                 />
               </div>
               <div className="grid gap-3 rounded-[28px] bg-slate-50 p-4 text-sm text-slate-700">
@@ -97,15 +140,15 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
                     <div>
                       <h2 className="text-2xl font-semibold text-slate-950">{field.name}</h2>
                       <p className="mt-2 text-sm text-slate-600">
-                        {field.features.join(" · ")}
+                        {((field as BookableField & { features?: string[] }).features ?? []).join(" · ")}
                       </p>
                     </div>
-                    <Badge variant="outline">{formatCurrency(field.pricePerSlot)}</Badge>
+                    <Badge variant="outline">{formatCurrency(toNumber((field as BookableField).pricePerSlot))}</Badge>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {field.availableSlots.map((slot) => (
-                      <Badge key={slot} variant="secondary">
-                        {slot}
+                    {((field as BookableField).availableSlots ?? []).map((slot) => (
+                      <Badge key={typeof slot === "string" ? slot : slot.id ?? getSlotLabel(slot)} variant="secondary">
+                        {getSlotLabel(slot)}
                       </Badge>
                     ))}
                   </div>
@@ -134,10 +177,7 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
           </div>
         </div>
 
-        {/* Reviews Section */}
-        <div className="mt-12 max-w-3xl">
-          <VenueReviews venueId={venue.id} />
-        </div>
+        <VenueReviewsSection venueId={id} />
       </div>
     </div>
   );

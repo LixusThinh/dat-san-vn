@@ -18,11 +18,13 @@
 // ============================================================
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider = "postgresql"
+  // extensions = [uuidOssp(pg_trgm)] // Prisma 7 ho tro
 }
 
 // ============================================================
@@ -123,7 +125,9 @@ model Venue {
   amenities   String[]
   isActive    Boolean   @default(false) @map("is_active") // ADMIN duyệt sân
   rating      Float     @default(0.0)
+  avgRating   Decimal?  @default(0) @map("avg_rating") @db.Decimal(3, 2)
   reviewCount Int       @default(0) @map("review_count")
+  version     Int       @default(1)
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
   deletedAt   DateTime? @map("deleted_at")
@@ -145,6 +149,7 @@ model Field {
   sportType SportType @map("sport_type")
   size      FieldSize @default(FIELD_7)
   isActive  Boolean   @default(true) @map("is_active")
+  version   Int       @default(1)
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
@@ -180,6 +185,7 @@ model VenueSlot {
   endTime      DateTime   @map("end_time") @db.Time(0)
   pricePerSlot Decimal    @map("price_per_slot") // changed to Decimal
   status       SlotStatus @default(AVAILABLE)
+  version      Int        @default(1)
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
@@ -201,9 +207,11 @@ model Booking {
   totalPrice   Decimal       @map("total_price") // changed to Decimal
   note         String?
   cancelReason String?       @map("cancel_reason")
+  refundAmount Decimal?      @map("refund_amount")
   cancelledAt  DateTime?     @map("cancelled_at")
   cancelledBy  String?       @map("cancelled_by")
   expiresAt    DateTime?     @map("expires_at")
+  version      Int           @default(1)
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
 
@@ -211,7 +219,7 @@ model Booking {
   venue        Venue         @relation(fields: [venueId], references: [id])
   bookingSlots BookingSlot[]
   payment      Payment?
-  review       Review?
+  reviews      Review[]
 
   @@index([userId, status])
   @@index([venueId, status])
@@ -255,20 +263,21 @@ model Payment {
 }
 
 model Review {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
+  id        String   @id @default(cuid())
   venueId   String   @map("venue_id")
-  bookingId String   @unique @map("booking_id")
-  rating    Int // 1-5
+  userId    String   @map("user_id")
+  bookingId String?  @map("booking_id")
+  rating    Int      @default(5) // 1-5
   comment   String?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  user    User    @relation(fields: [userId], references: [id])
-  venue   Venue   @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  booking Booking @relation(fields: [bookingId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
+  venue   Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  booking Booking? @relation(fields: [bookingId], references: [id])
 
   @@index([venueId])
-  @@index([rating])
+  @@index([userId])
+  @@index([bookingId])
   @@map("reviews")
 }

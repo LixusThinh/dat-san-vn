@@ -1,13 +1,8 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 export class CreateReviewDto {
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
   venueId: string;
-
-  @IsString()
-  @IsNotEmpty()
-  bookingId: string;
 
   @IsInt()
   @Min(1)
@@ -17,4 +12,8 @@ export class CreateReviewDto {
   @IsString()
   @IsOptional()
   comment?: string;
+
+  @IsUUID()
+  @IsOptional()
+  bookingId?: string;
 }

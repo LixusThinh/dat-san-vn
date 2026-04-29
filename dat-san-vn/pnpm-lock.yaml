@@ -56,6 +56,9 @@ importers:
       '@prisma/client':
         specifier: ^7.7.0
         version: 7.7.0(prisma@7.7.0(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(typescript@5.9.2)
+      '@types/pg':
+        specifier: ^8.20.0
+        version: 8.20.0
       bullmq:
         specifier: ^5.73.5
         version: 5.73.5
@@ -71,6 +74,9 @@ importers:
       ioredis:
         specifier: ^5.10.1
         version: 5.10.1
+      pg:
+        specifier: ^8.20.0
+        version: 8.20.0
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -6660,7 +6666,7 @@ snapshots:
 
   '@types/pg@8.20.0':
     dependencies:
-      '@types/node': 24.12.2
+      '@types/node': 25.6.0
       pg-protocol: 1.13.0
       pg-types: 2.2.0
 
@@ -8314,7 +8320,7 @@ snapshots:
 
   jest-worker@27.5.1:
     dependencies:
-      '@types/node': 24.12.2
+      '@types/node': 25.6.0
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
