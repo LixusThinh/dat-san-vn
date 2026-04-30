@@ -340,23 +340,23 @@ export const testimonials = [
   {
     id: "testimonial-1",
     quote:
-      "Đội mình chốt sân rất nhanh, filter khung giờ buổi tối dùng cực tiện khi phải book sát giờ.",
+      "Ứng dụng rất mượt trên điện thoại, thao tác chốt sân vô cùng nhanh gọn. Đội mình giờ không cần nhắn tin lòng vòng qua Zalo nữa.",
     author: "Phúc Nguyễn",
     role: "Đội trưởng FC Tân Cảng",
   },
   {
     id: "testimonial-2",
     quote:
-      "Venue detail rõ ràng, nhìn slot trống là chốt luôn được, không cần nhắn tin hỏi từng sân nữa.",
+      "Thông tin sân rõ ràng, nhìn vào là biết ngay còn slot nào. Tiết kiệm cả buổi so với hồi phải gọi điện hỏi từng nơi.",
     author: "Linh Trần",
-    role: "Người chơi phong trào",
+    role: "Người chơi phong trào, Quận 3",
   },
   {
     id: "testimonial-3",
     quote:
-      "Giao diện mobile ổn, mình đặt sân trên đường đi làm về mà vẫn thao tác rất nhanh.",
+      "Đặt sân trên đường đi làm về mà vẫn xong trong chưa đầy một phút. Lịch sử đặt sân lưu lại gọn gàng, tiện theo dõi chi phí cả tháng.",
     author: "Minh Hoàng",
-    role: "Quản lý đội văn phòng",
+    role: "Quản lý đội văn phòng, Bình Thạnh",
   },
 ];
 
