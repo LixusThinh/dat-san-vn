@@ -46,7 +46,7 @@ function getSlotLabel(slot?: string | BookableSlot) {
 function getFirstBookableSlot(field: BookableField) {
   const rawSlot = field.slots?.[0] ?? field.availableSlots?.[0];
   return {
-    id: typeof rawSlot === "string" ? undefined : rawSlot?.id,
+    id: typeof rawSlot === "string" ? `mock-slot-${rawSlot.replace(":", "")}` : rawSlot?.id,
     label: getSlotLabel(rawSlot),
   };
 }

@@ -152,7 +152,27 @@ export async function getPlayerBookings(token: string) {
   return bookings.map(mapPlayerBooking);
 }
 
-export function createPlayerBooking(token: string, data: CreatePlayerBookingInput) {
+export async function createPlayerBooking(token: string, data: CreatePlayerBookingInput) {
+  // Bỏ qua gọi API nếu đang dùng mock data (ID có dạng rs-field-1, v.v.)
+  if (data.fieldId.includes("-field-")) {
+    return new Promise<RawPlayerBooking>((resolve) => {
+      setTimeout(() => {
+        resolve({
+          id: `MOCK-${Math.floor(Math.random() * 10000)}`,
+          status: "PENDING",
+          totalPrice: 450000,
+          createdAt: new Date().toISOString(),
+          venue: {
+            id: "mock-venue",
+            name: "Mock Venue",
+            address: "Mock Address",
+          },
+          bookingSlots: [],
+        } as unknown as RawPlayerBooking);
+      }, 1000);
+    });
+  }
+
   return requestApi<RawPlayerBooking>("/bookings", {
     token,
     method: "POST",
