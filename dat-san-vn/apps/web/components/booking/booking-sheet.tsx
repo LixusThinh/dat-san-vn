@@ -58,6 +58,30 @@ export function BookingSheet({
 
       const booking = await createPlayerBooking(token, { fieldId, timeSlotId });
 
+      if (fieldId.includes("-field-")) {
+        const [timeHour, timeMin] = firstSlot.split(":");
+        const mockEndHour = String((Number(timeHour) + 1) % 24).padStart(2, "0");
+        const mockBooking = {
+          id: booking.id,
+          venueId: fieldId.split("-")[0] + "-venue",
+          venueName,
+          venueAddress: "Đang cập nhật",
+          fieldName,
+          bookingDate: new Date().toLocaleDateString("vi-VN"),
+          bookingTime: `${firstSlot} - ${mockEndHour}:${timeMin}`,
+          startsAt: new Date().toISOString(),
+          status: "PENDING",
+          totalPrice: pricePerSlot,
+          refundAmount: 0,
+          refundPercent: 100,
+          canCancel: true,
+          cancelledAt: null,
+          cancelReason: null,
+        };
+        const existing = JSON.parse(localStorage.getItem("mock_bookings") || "[]");
+        localStorage.setItem("mock_bookings", JSON.stringify([mockBooking, ...existing]));
+      }
+
       setOpen(false);
       toast({
         title: "Đặt sân thành công!",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { AlertTriangle, CalendarDays, MapPin, RefreshCcw, RotateCcw } from "lucide-react";
 import Link from "next/link";
@@ -21,6 +21,20 @@ export function PlayerBookingsClient({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [actionBookingId, setActionBookingId] = useState<string | null>(null);
 
+  useEffect(() => {
+    try {
+      const mockStr = localStorage.getItem("mock_bookings");
+      if (mockStr) {
+        const mockBookings: PlayerBooking[] = JSON.parse(mockStr);
+        setBookings((prev) => {
+          const existingIds = new Set(prev.map((b) => b.id));
+          const newMocks = mockBookings.filter((mb) => !existingIds.has(mb.id));
+          return [...newMocks, ...prev];
+        });
+      }
+    } catch {}
+  }, []);
+
   async function refreshBookings(silent = false) {
     const token = await getToken();
     if (!token) {
@@ -35,7 +49,18 @@ export function PlayerBookingsClient({
     if (!silent) setIsRefreshing(true);
 
     try {
-      setBookings(await getPlayerBookings(token));
+      const realBookings = await getPlayerBookings(token);
+      let nextBookings = realBookings;
+      try {
+        const mockStr = localStorage.getItem("mock_bookings");
+        if (mockStr) {
+          const mockBookings: PlayerBooking[] = JSON.parse(mockStr);
+          const existingIds = new Set(realBookings.map((b) => b.id));
+          const newMocks = mockBookings.filter((mb) => !existingIds.has(mb.id));
+          nextBookings = [...newMocks, ...realBookings];
+        }
+      } catch {}
+      setBookings(nextBookings);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -69,11 +94,45 @@ export function PlayerBookingsClient({
 
     try {
       await cancelPlayerBooking(token, booking.id, reason);
+      
+      if (booking.id.startsWith("MOCK-") || booking.id.startsWith("BK-")) {
+        try {
+          const mockStr = localStorage.getItem("mock_bookings");
+          if (mockStr) {
+            const mockBookings: PlayerBooking[] = JSON.parse(mockStr);
+            const updated = mockBookings.map((b) =>
+              b.id === booking.id
+                ? {
+                    ...b,
+                    status: "CANCELLED" as const,
+                    canCancel: false,
+                    refundAmount: b.totalPrice * (b.refundPercent / 100),
+                  }
+                : b
+            );
+            localStorage.setItem("mock_bookings", JSON.stringify(updated));
+          }
+        } catch {}
+        setBookings((prev) =>
+          prev.map((b) =>
+            b.id === booking.id
+              ? {
+                  ...b,
+                  status: "CANCELLED" as const,
+                  canCancel: false,
+                  refundAmount: b.totalPrice * (b.refundPercent / 100),
+                }
+              : b
+          )
+        );
+      } else {
+        await refreshBookings(true);
+      }
+
       toast({
         title: "Hủy booking thành công",
         description: `Chính sách hoàn tiền áp dụng: ${booking.refundPercent}%.`,
       });
-      await refreshBookings(true);
     } catch (error) {
       toast({
         variant: "destructive",

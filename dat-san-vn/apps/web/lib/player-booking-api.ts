@@ -181,6 +181,10 @@ export async function createPlayerBooking(token: string, data: CreatePlayerBooki
 }
 
 export function cancelPlayerBooking(token: string, bookingId: string, reason?: string) {
+  if (bookingId.startsWith("MOCK-") || bookingId.startsWith("BK-")) {
+    return new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
   return requestApi("/bookings/cancel", {
     token,
     method: "POST",
