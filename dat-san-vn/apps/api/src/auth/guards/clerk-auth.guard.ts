@@ -154,12 +154,19 @@ export class ClerkAuthGuard implements CanActivate {
       throw new UnauthorizedException('Account has been deactivated');
     }
 
-    // ── Step 5: Attach AuthUser to request ─────────────────────────────────
+    // ── Step 5: Query staff venues ───────────────────────────────────────
+    const staffRecords = await this.prisma.venueStaff.findMany({
+      where: { userId: user.id, isActive: true },
+      select: { venueId: true },
+    });
+
+    // ── Step 6: Attach AuthUser to request ─────────────────────────────────
     const authUser: AuthUser = {
       id: user.id,
       clerkId: user.clerkId ?? clerkUserId,
       email: user.email,
       role: user.role,
+      staffVenueIds: staffRecords.map((s) => s.venueId),
     };
 
     request.user = authUser;

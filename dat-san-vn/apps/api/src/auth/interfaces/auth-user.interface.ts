@@ -24,4 +24,7 @@ export interface AuthUser {
 
   /** User's role from our DB (PLAYER | OWNER | ADMIN) */
   role: UserRole;
+
+  /** venueId[] where this user is an active STAFF member */
+  staffVenueIds: string[];
 }

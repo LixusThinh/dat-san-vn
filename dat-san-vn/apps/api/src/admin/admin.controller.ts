@@ -21,7 +21,7 @@ import { ClerkAuthGuard } from '../auth/guards/clerk-auth.guard.js';
 import { RolesGuard } from '../common/guards/roles.guard.js';
 import { Roles } from '../common/decorators/roles.decorator.js';
 
-@Controller('api/admin')
+@Controller('admin')
 @UseGuards(ClerkAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
 export class AdminController {

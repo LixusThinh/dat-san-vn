@@ -1,4 +1,4 @@
-import { IsUUID, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsUUID, IsNotEmpty, IsOptional, IsString, IsBoolean } from 'class-validator';
 
 export class CreateBookingDto {
   @IsUUID()
@@ -12,4 +12,8 @@ export class CreateBookingDto {
   @IsString()
   @IsOptional()
   note?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isWalkIn?: boolean;
 }

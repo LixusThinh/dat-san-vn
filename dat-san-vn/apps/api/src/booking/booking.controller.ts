@@ -15,9 +15,11 @@ import { BookingService } from './booking.service.js';
 import { CancelBookingDto, CreateBookingDto } from './dto/index.js';
 import { ClerkAuthGuard } from '../auth/guards/clerk-auth.guard.js';
 import { RolesGuard } from '../common/guards/roles.guard.js';
+import { StaffGuard } from '../common/guards/staff.guard.js';
 import { Roles } from '../common/decorators/roles.decorator.js';
+import { RequireStaffPermissions } from '../common/decorators/staff-permissions.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
-import { UserRole } from '@prisma/client';
+import { UserRole, StaffPermission } from '@prisma/client';
 import type { AuthUser } from '../auth/interfaces/auth-user.interface.js';
 
 @Controller('bookings')
@@ -102,5 +104,47 @@ export class BookingController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.bookingService.cancelBooking(id, user.id, user.role === UserRole.OWNER);
+  }
+
+  // ── Staff endpoints ────────────────────────────────────────
+
+  // STAFF confirm booking (phải có MANAGE_BOOKINGS)
+  @Patch(':id/staff-confirm')
+  @UseGuards(StaffGuard)
+  @RequireStaffPermissions(StaffPermission.MANAGE_BOOKINGS)
+  @HttpCode(HttpStatus.OK)
+  staffConfirmBooking(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.bookingService.confirmBooking(id, user.id);
+  }
+
+  // STAFF cancel booking
+  @Patch(':id/staff-cancel')
+  @UseGuards(StaffGuard)
+  @RequireStaffPermissions(StaffPermission.MANAGE_BOOKINGS)
+  @HttpCode(HttpStatus.OK)
+  staffCancelBooking(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.bookingService.cancelBooking(id, user.id, true);
+  }
+
+  // STAFF tạo walk-in booking (khách vãng lai)
+  @Post('walk-in')
+  @UseGuards(StaffGuard)
+  @RequireStaffPermissions(StaffPermission.CREATE_WALK_IN)
+  @HttpCode(HttpStatus.CREATED)
+  createWalkIn(
+    @Body() dto: CreateBookingDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    // Walk-in: tạo booking với status CONFIRMED ngay, payment method CASH
+    return this.bookingService.createBooking(user.id, {
+      ...dto,
+      isWalkIn: true,
+    });
   }
 }

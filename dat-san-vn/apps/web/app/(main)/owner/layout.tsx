@@ -50,7 +50,8 @@ export default async function OwnerLayout({
   try {
     profile = await getCurrentUserProfile(token);
   } catch {
-    // Backend unreachable — enter mock mode instead of blocking the owner.
+    // Backend unreachable — enter mock mode only in development
+    if (process.env.NODE_ENV !== 'development') redirect('/');
     isMockMode = true;
     profile = {
       fullName: "Chủ sân (Mock)",

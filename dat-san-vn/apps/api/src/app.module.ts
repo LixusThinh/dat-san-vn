@@ -13,6 +13,7 @@ import { clerkConfig } from './config/clerk.config.js';
 import { QueuesModule } from './queues/queues.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { ReviewModule } from './review/review.module';
+import { StaffModule } from './staff/staff.module.js';
 
 /**
  * AppModule — root module.
@@ -74,6 +75,9 @@ import { ReviewModule } from './review/review.module';
     AdminModule,
 
     ReviewModule,
+
+    // Staff management (venue-scoped permissions)
+    StaffModule,
   ],
   controllers: [AppController],
   providers: [AppService],

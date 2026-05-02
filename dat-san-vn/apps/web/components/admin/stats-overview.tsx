@@ -1,20 +1,20 @@
 "use client";
 
-import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 
 export function AdminStatsCard({
   title,
   value,
   description,
-  icon: Icon,
+  icon,
   iconClassName,
   highlight,
 }: Readonly<{
   title: string;
   value: string | number;
   description: string;
-  icon: LucideIcon;
+  icon: ReactNode;
   iconClassName?: string;
   highlight?: boolean;
 }>) {
@@ -28,7 +28,7 @@ export function AdminStatsCard({
         <div
           className={`flex h-11 w-11 items-center justify-center rounded-2xl ${iconClassName ?? "bg-indigo-50 text-indigo-600"}`}
         >
-          <Icon className="h-5 w-5" />
+          {icon}
         </div>
         <div className="mt-5 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">{title}</div>
         <div className={`mt-2 text-3xl font-semibold ${highlight ? "text-red-600" : "text-slate-950"}`}>{value}</div>

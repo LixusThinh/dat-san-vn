@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, Search } from "lucide-react";
-import { useUser, UserButton } from "@clerk/nextjs";
+import { Menu, Search, LayoutDashboard, Building2 } from "lucide-react";
+import { useUser, useAuth, UserButton } from "@clerk/nextjs";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
@@ -13,7 +14,22 @@ const navigation = [
 ];
 
 export function Navbar() {
-  const { isSignedIn } = useUser();
+  const { isSignedIn, user } = useUser();
+  const { getToken } = useAuth();
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isSignedIn) return;
+    getToken().then((token) => {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      })
+        .then((r) => r.json())
+        .then((data) => setRole(data?.data?.role ?? null))
+        .catch(() => {});
+    });
+  }, [isSignedIn, getToken]);
 
   return (
     <header className="sticky top-0 z-40 px-4 py-4 sm:px-6 lg:px-8">
@@ -34,6 +50,18 @@ export function Navbar() {
               {item.label}
             </Link>
           ))}
+          {role === "ADMIN" && (
+            <Link href="/admin" className="flex items-center gap-1.5 text-sm font-medium text-indigo-600 transition hover:text-indigo-800">
+              <LayoutDashboard className="h-4 w-4" />
+              Admin
+            </Link>
+          )}
+          {role === "OWNER" && (
+            <Link href="/owner" className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 transition hover:text-emerald-900">
+              <Building2 className="h-4 w-4" />
+              Quản lý sân
+            </Link>
+          )}
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
@@ -74,6 +102,22 @@ export function Navbar() {
                   <Link href={item.href}>{item.label}</Link>
                 </Button>
               ))}
+              {role === "ADMIN" && (
+                <Button asChild variant="secondary" className="justify-start rounded-2xl text-indigo-600">
+                  <Link href="/admin">
+                    <LayoutDashboard className="h-4 w-4" />
+                    Admin Panel
+                  </Link>
+                </Button>
+              )}
+              {role === "OWNER" && (
+                <Button asChild variant="secondary" className="justify-start rounded-2xl text-emerald-700">
+                  <Link href="/owner">
+                    <Building2 className="h-4 w-4" />
+                    Quản lý sân
+                  </Link>
+                </Button>
+              )}
             </div>
             <div className="rounded-[28px] bg-emerald-50 p-5">
               {!isSignedIn ? (

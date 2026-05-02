@@ -61,9 +61,10 @@ export function VenueReviews({ venueId }: { venueId: string }) {
         },
       });
       if (res.ok) {
-        const bookings = await res.json();
-        setEligibleBookings(bookings || []);
-        if (bookings && bookings.length > 0) {
+        const json = await res.json();
+        const bookings = json.data || [];
+        setEligibleBookings(bookings);
+        if (bookings.length > 0) {
           setSelectedBooking(bookings[0]);
         }
       }
