@@ -21,7 +21,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "clear:bookings": "tsx scripts/clear-all-bookings.ts",
     "clear:user-bookings": "tsx scripts/clear-user-bookings.ts",
-    "seed:clerk": "tsx scripts/seed-clerk-users.ts"
+    "seed:clerk": "tsx scripts/seed-clerk-users.ts",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@clerk/backend": "^3.2.8",

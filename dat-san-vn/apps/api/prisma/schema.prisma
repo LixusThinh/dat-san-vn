@@ -23,7 +23,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // extensions = [uuidOssp(pg_trgm)] // Prisma 7 ho tro
 }
 
 // ============================================================

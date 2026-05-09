@@ -1,4 +1,9 @@
 // apps/api/prisma.config.ts
+// ============================================================
+// Prisma 7 Config — Neon PostgreSQL
+// CLI (migrate, db push) dùng DIRECT_URL (non-pooler)
+// Runtime (PrismaClient) dùng DATABASE_URL (pooler) qua adapter
+// ============================================================
 import dotenv from "dotenv";
 dotenv.config();   // Load .env trước khi Prisma đọc
 
@@ -8,7 +13,9 @@ export default defineConfig({
   schema: "./prisma/schema.prisma",
 
   datasource: {
-    url: env("DATABASE_URL"),
+    // CLI dùng DIRECT_URL (non-pooler) cho migrations
+    // PrismaClient runtime dùng DATABASE_URL (pooler) qua PrismaPg adapter
+    url: env("DIRECT_URL"),
   },
 
   migrations: {
