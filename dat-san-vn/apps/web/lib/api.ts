@@ -47,7 +47,8 @@ async function fetchApi<T>(
 
 export async function getFeaturedVenues() {
   const response = await fetchApi("/venues/featured", featuredVenues.map(toVenueSummary));
-  return response.data;
+  const data = response.data as any;
+  return Array.isArray(data) ? data : data?.items ?? data ?? [];
 }
 
 export async function searchVenues(filters: VenueSearchFilters) {
@@ -62,7 +63,8 @@ export async function searchVenues(filters: VenueSearchFilters) {
   const fallback = filterVenues(filters).map(toVenueSummary);
   const query = params.toString();
   const response = await fetchApi(`/venues${query ? `?${query}` : ""}`, fallback);
-  return response.data;
+  const data = response.data as any;
+  return Array.isArray(data) ? data : data?.items ?? [];
 }
 
 export async function getVenueDetail(id: string): Promise<VenueDetail | null> {

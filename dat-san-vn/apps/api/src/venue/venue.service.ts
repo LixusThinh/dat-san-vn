@@ -74,6 +74,7 @@ export class VenueService {
 
     const where: Record<string, unknown> = {
       deletedAt: null,
+      isActive: true,
     };
 
     if (city) where.city = city;
@@ -108,6 +109,23 @@ export class VenueService {
       },
       'Venues retrieved successfully',
     );
+  }
+
+  async findFeatured() {
+    const venues = await this.prisma.venue.findMany({
+      where: { deletedAt: null, isActive: true },
+      take: 6,
+      include: {
+        fields: {
+          where: { isActive: true },
+          select: { id: true, name: true, sportType: true },
+        },
+        _count: { select: { reviews: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return success(venues, 'Featured venues retrieved successfully');
   }
 
   async findOne(id: string) {

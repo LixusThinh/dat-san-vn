@@ -45,6 +45,12 @@ export class VenueController {
     return this.venueService.findAll(query);
   }
 
+  @Get('featured')
+  @Public()
+  findFeatured() {
+    return this.venueService.findFeatured();
+  }
+
   @Get('my')
   @Roles(UserRole.OWNER)
   findMine(@CurrentUser() user: AuthUser) {
