@@ -6,6 +6,7 @@ import { useUser, useAuth, UserButton } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { getCurrentUserProfile } from "@/lib/owner-api";
 
 const navigation = [
   { href: "/", label: "Trang chủ" },
@@ -19,16 +20,27 @@ export function Navbar() {
   const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isSignedIn) return;
-    getToken().then((token) => {
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      })
-        .then((r) => r.json())
-        .then((data) => setRole(data?.data?.role ?? null))
-        .catch(() => {});
-    });
+    if (!isSignedIn) {
+      setRole(null);
+      return;
+    }
+
+    const fetchRole = async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+
+        const profile = await getCurrentUserProfile(token);
+        if (profile?.role) {
+          console.log(`[Navbar] User role: ${profile.role}`);
+          setRole(profile.role);
+        }
+      } catch (error) {
+        console.error("[Navbar] Failed to fetch user profile:", error);
+      }
+    };
+
+    fetchRole();
   }, [isSignedIn, getToken]);
 
   return (

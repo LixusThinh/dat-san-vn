@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { CreateVenuePayload } from "@dat-san-vn/types";
 import { useForm } from "react-hook-form";
+import { useAuth } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ImageUploader } from "@/components/common/image-uploader";
 import type { OwnerVenue } from "@/lib/owner-api";
+import { formatCurrency } from "@/lib/utils";
 
 interface VenueFormValues {
   name: string;
@@ -17,7 +20,7 @@ interface VenueFormValues {
   city: string;
   latitude: string;
   longitude: string;
-  images: string;
+  pricePerHour: string;
   amenities: string;
 }
 
@@ -29,7 +32,7 @@ const defaultValues: VenueFormValues = {
   city: "",
   latitude: "",
   longitude: "",
-  images: "",
+  pricePerHour: "",
   amenities: "",
 };
 
@@ -39,6 +42,10 @@ function toMultiValueList(value: string) {
     .map((item) => item.trim())
     .filter(Boolean);
 }
+
+/* ── Shared input styling for focus/transition ─────────────────── */
+const inputClassName =
+  "transition-all duration-200 focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-500 hover:border-slate-300";
 
 export function VenueForm({
   venue,
@@ -51,9 +58,20 @@ export function VenueForm({
   onSubmit: (payload: CreateVenuePayload) => void | Promise<void>;
   onCancel?: () => void;
 }>) {
+  const { getToken } = useAuth();
   const form = useForm<VenueFormValues>({
     defaultValues,
   });
+
+  // Manage images state separately (string[]) since it's not a text input anymore
+  const [images, setImages] = useState<string[]>([]);
+
+  // Watch pricePerHour for live preview
+  const watchedPrice = form.watch("pricePerHour");
+  const pricePreview =
+    watchedPrice && Number(watchedPrice) > 0
+      ? formatCurrency(Number(watchedPrice))
+      : null;
 
   useEffect(() => {
     form.reset({
@@ -64,9 +82,13 @@ export function VenueForm({
       city: venue?.city ?? "",
       latitude: "",
       longitude: "",
-      images: "",
+      pricePerHour: venue?.pricePerHour != null ? String(venue.pricePerHour) : "",
       amenities: "",
     });
+    // Reset images when editing a different venue
+    // Note: venue data from the list may not include images; they would
+    // need to be fetched from the detail endpoint for a full edit flow.
+    setImages([]);
   }, [form, venue]);
 
   const handleSubmit = form.handleSubmit(async (values) => {
@@ -78,7 +100,9 @@ export function VenueForm({
       city: values.city.trim(),
       latitude: values.latitude ? Number(values.latitude) : undefined,
       longitude: values.longitude ? Number(values.longitude) : undefined,
-      images: toMultiValueList(values.images),
+      pricePerHour: values.pricePerHour ? Number(values.pricePerHour) : undefined,
+      heroImage: images[0] || "",
+      gallery: images.slice(1),
       amenities: toMultiValueList(values.amenities),
     } satisfies CreateVenuePayload;
 
@@ -86,10 +110,15 @@ export function VenueForm({
   });
 
   return (
-    <form className="grid gap-5" onSubmit={handleSubmit}>
+    <form className="grid gap-5 animate-in fade-in slide-in-from-right-4 duration-300" onSubmit={handleSubmit}>
       <div className="grid gap-2">
         <Label htmlFor="venue-name">Tên sân</Label>
-        <Input id="venue-name" placeholder="Ví dụ: Sân bóng Thành Công" {...form.register("name", { required: true })} />
+        <Input
+          id="venue-name"
+          placeholder="Ví dụ: Sân bóng Thành Công"
+          className={inputClassName}
+          {...form.register("name", { required: true })}
+        />
       </div>
 
       <div className="grid gap-2">
@@ -97,55 +126,129 @@ export function VenueForm({
         <Textarea
           id="venue-description"
           placeholder="Mô tả ngắn về sân, chỗ gửi xe, đèn chiếu sáng..."
+          className={inputClassName}
           {...form.register("description")}
         />
       </div>
 
       <div className="grid gap-2">
         <Label htmlFor="venue-address">Địa chỉ</Label>
-        <Input id="venue-address" placeholder="Số nhà, đường, phường/xã" {...form.register("address", { required: true })} />
+        <Input
+          id="venue-address"
+          placeholder="Số nhà, đường, phường/xã"
+          className={inputClassName}
+          {...form.register("address", { required: true })}
+        />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
           <Label htmlFor="venue-district">Quận/Huyện</Label>
-          <Input id="venue-district" placeholder="Quận 7" {...form.register("district", { required: true })} />
+          <Input
+            id="venue-district"
+            placeholder="Quận 7"
+            className={inputClassName}
+            {...form.register("district", { required: true })}
+          />
         </div>
         <div className="grid gap-2">
           <Label htmlFor="venue-city">Tỉnh/Thành phố</Label>
-          <Input id="venue-city" placeholder="TP. Hồ Chí Minh" {...form.register("city", { required: true })} />
+          <Input
+            id="venue-city"
+            placeholder="TP. Hồ Chí Minh"
+            className={inputClassName}
+            {...form.register("city", { required: true })}
+          />
         </div>
+      </div>
+
+      {/* ── Giá thuê / giờ ──────────────────────────────────── */}
+      <div className="grid gap-2">
+        <Label htmlFor="venue-price">Giá thuê / giờ</Label>
+        <div className="relative">
+          <Input
+            id="venue-price"
+            type="number"
+            min={0}
+            step={1000}
+            placeholder="Ví dụ: 200000"
+            className={`${inputClassName} pr-14`}
+            {...form.register("pricePerHour")}
+          />
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">
+            VNĐ
+          </span>
+        </div>
+        {pricePreview ? (
+          <p className="text-xs text-emerald-600 animate-in fade-in duration-200">
+            ≈ {pricePreview}
+          </p>
+        ) : null}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
           <Label htmlFor="venue-latitude">Vĩ độ</Label>
-          <Input id="venue-latitude" type="number" step="any" placeholder="10.7769" {...form.register("latitude")} />
+          <Input
+            id="venue-latitude"
+            type="number"
+            step="any"
+            placeholder="10.7769"
+            className={inputClassName}
+            {...form.register("latitude")}
+          />
         </div>
         <div className="grid gap-2">
           <Label htmlFor="venue-longitude">Kinh độ</Label>
-          <Input id="venue-longitude" type="number" step="any" placeholder="106.7009" {...form.register("longitude")} />
+          <Input
+            id="venue-longitude"
+            type="number"
+            step="any"
+            placeholder="106.7009"
+            className={inputClassName}
+            {...form.register("longitude")}
+          />
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-2">
-          <Label htmlFor="venue-images">Ảnh (mỗi dòng một URL)</Label>
-          <Textarea id="venue-images" placeholder="https://..." className="min-h-[96px]" {...form.register("images")} />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="venue-amenities">Tiện ích (mỗi dòng một mục)</Label>
-          <Textarea id="venue-amenities" placeholder="Bãi giữ xe&#10;Nước uống" className="min-h-[96px]" {...form.register("amenities")} />
-        </div>
+      {/* Image upload — replaces the old textarea */}
+      <div className="grid gap-2">
+        <Label>Ảnh sân</Label>
+        <ImageUploader
+          value={images}
+          onChange={setImages}
+          getToken={getToken}
+          maxImages={10}
+          disabled={submitting}
+        />
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="venue-amenities">Tiện ích (mỗi dòng một mục)</Label>
+        <Textarea
+          id="venue-amenities"
+          placeholder={"Bãi giữ xe\nNước uống"}
+          className={`min-h-[96px] ${inputClassName}`}
+          {...form.register("amenities")}
+        />
       </div>
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         {onCancel ? (
-          <Button type="button" variant="secondary" onClick={onCancel}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onCancel}
+            className="transition-all duration-200 hover:scale-[1.02]"
+          >
             Đóng
           </Button>
         ) : null}
-        <Button type="submit" disabled={submitting}>
+        <Button
+          type="submit"
+          disabled={submitting}
+          className="transition-all duration-200 hover:scale-[1.02] hover:shadow-lg hover:shadow-emerald-500/20 active:scale-[0.98]"
+        >
           {submitting ? "Đang lưu..." : venue ? "Lưu thay đổi" : "Tạo sân"}
         </Button>
       </div>

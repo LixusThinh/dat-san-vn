@@ -40,7 +40,7 @@ async function bootstrap() {
 
   // ── Global prefix (exclude webhooks so path stays /webhooks/clerk) ──────────
   app.setGlobalPrefix('api', {
-    exclude: ['webhooks/(.*)', 'health'],
+    exclude: ['webhooks/(.*)', 'health', 'uploads/(.*)'],
   });
 
   const port = process.env.PORT ?? 3000;

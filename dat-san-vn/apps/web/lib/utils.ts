@@ -142,3 +142,94 @@ const sportTypeLabels: Record<SportType, string> = {
 export function formatSportTypeLabel(value: SportType) {
   return sportTypeLabels[value];
 }
+
+// ── Safe image URL handling ──────────────────────────────────
+
+/**
+ * Fallback placeholder image when no valid venue image is available.
+ */
+export const VENUE_PLACEHOLDER_IMAGE =
+  "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=1200&q=80";
+
+/**
+ * Sanitize and validate an image URL string.
+ *
+ * Handles common issues like:
+ * - BBCode wrappers: `[img]https://abc.webp[/img]`
+ * - Whitespace / empty values
+ * - Invalid URL schemes (data:, javascript:)
+ * - Malformed strings
+ *
+ * Returns a clean URL or the fallback placeholder.
+ */
+export function getSafeImageUrl(raw: unknown): string {
+  if (typeof raw !== "string" || !raw.trim()) {
+    return VENUE_PLACEHOLDER_IMAGE;
+  }
+
+  // Strip BBCode [img]...[/img] wrappers
+  let cleaned = raw.trim().replace(/^\[img\]/i, "").replace(/\[\/img\]$/i, "").trim();
+
+  // Strip any remaining BBCode-like tags
+  cleaned = cleaned.replace(/^\[.*?\]/g, "").replace(/\[.*?\]$/g, "").trim();
+
+  if (!cleaned) {
+    return VENUE_PLACEHOLDER_IMAGE;
+  }
+
+  // Reject dangerous or invalid schemes
+  if (/^(data:|javascript:|blob:)/i.test(cleaned)) {
+    return VENUE_PLACEHOLDER_IMAGE;
+  }
+
+  // Allow relative paths (e.g., /uploads/...) as-is
+  if (cleaned.startsWith("/")) {
+    return cleaned;
+  }
+
+  // Validate URL structure
+  try {
+    const url = new URL(cleaned);
+    if (!["http:", "https:"].includes(url.protocol)) {
+      return VENUE_PLACEHOLDER_IMAGE;
+    }
+    return url.href;
+  } catch {
+    return VENUE_PLACEHOLDER_IMAGE;
+  }
+}
+
+/**
+ * Safely parse JSON strings or return the value if it's already an array/object.
+ */
+export function safeJsonParse(value: unknown, fallback: any = []) {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "object") return value; // Already an object or array
+  if (typeof value !== "string") return fallback;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Safely convert a value to a string array.
+ * Useful for fields like images, amenities, gallery which might be stored as JSON strings or arrays.
+ */
+export function safeArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (typeof value !== "string") return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch {
+    // If it's not JSON but a comma-separated string, we could potentially split it
+    // but the requirement is to return [] if it's not a valid JSON array.
+    // However, sometimes it's just a plain string if it's a single item.
+    if (value.trim()) return [value.trim()];
+    return [];
+  }
+}

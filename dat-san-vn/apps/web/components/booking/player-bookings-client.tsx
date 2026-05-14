@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { cancelPlayerBooking, getPlayerBookings, type PlayerBooking } from "@/lib/player-booking-api";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, safeJsonParse } from "@/lib/utils";
 
 export function PlayerBookingsClient({
   initialBookings,
@@ -25,7 +25,7 @@ export function PlayerBookingsClient({
     try {
       const mockStr = localStorage.getItem("mock_bookings");
       if (mockStr) {
-        const mockBookings: PlayerBooking[] = JSON.parse(mockStr);
+        const mockBookings: PlayerBooking[] = safeJsonParse(mockStr, []);
         setBookings((prev) => {
           const existingIds = new Set(prev.map((b) => b.id));
           const newMocks = mockBookings.filter((mb) => !existingIds.has(mb.id));
@@ -54,7 +54,7 @@ export function PlayerBookingsClient({
       try {
         const mockStr = localStorage.getItem("mock_bookings");
         if (mockStr) {
-          const mockBookings: PlayerBooking[] = JSON.parse(mockStr);
+          const mockBookings: PlayerBooking[] = safeJsonParse(mockStr, []);
           const existingIds = new Set(realBookings.map((b) => b.id));
           const newMocks = mockBookings.filter((mb) => !existingIds.has(mb.id));
           nextBookings = [...newMocks, ...realBookings];
@@ -99,7 +99,7 @@ export function PlayerBookingsClient({
         try {
           const mockStr = localStorage.getItem("mock_bookings");
           if (mockStr) {
-            const mockBookings: PlayerBooking[] = JSON.parse(mockStr);
+            const mockBookings: PlayerBooking[] = safeJsonParse(mockStr, []);
             const updated = mockBookings.map((b) =>
               b.id === booking.id
                 ? {

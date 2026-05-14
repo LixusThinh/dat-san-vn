@@ -57,6 +57,11 @@ export class AdminController {
     return this.adminService.deleteUser(id);
   }
 
+  @Patch('users/:id/activate')
+  activateUser(@Param('id') id: string) {
+    return this.adminService.activateUser(id);
+  }
+
   // ── Venues ─────────────────────────────────────────────────
 
   @Get('venues')

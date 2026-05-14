@@ -1,4 +1,5 @@
 import type { ApiResponse } from "@dat-san-vn/types";
+import { safeArray, safeJsonParse } from "@/lib/utils";
 import {
   bookingItems,
   featuredVenues,
@@ -67,10 +68,20 @@ export async function searchVenues(filters: VenueSearchFilters) {
   return Array.isArray(data) ? data : data?.items ?? [];
 }
 
+
 export async function getVenueDetail(id: string): Promise<VenueDetail | null> {
   const fallback = venueDetails.find((venue) => venue.id === id) ?? null;
-  const response = await fetchApi(`/venues/${id}`, fallback);
-  return response.data;
+  const response = await fetchApi<VenueDetail | null>(`/venues/${id}`, fallback);
+  const venue = response.data;
+
+  if (!venue) return null;
+
+  return {
+    ...venue,
+    gallery: safeArray(venue.gallery),
+    amenities: safeArray(venue.amenities),
+    images: safeArray(venue.images),
+  };
 }
 
 export async function getFieldAvailableSlots(fieldId: string, date: string) {

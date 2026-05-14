@@ -139,6 +139,28 @@ export class AdminService {
     return success(null, 'User deactivated successfully');
   }
 
+  async activateUser(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID "${userId}" not found`);
+    }
+
+    if (user.isActive) {
+      return success(null, 'User is already active');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { isActive: true },
+    });
+
+    this.logger.log(`User ${userId} re-activated by admin`);
+    return success(null, 'User activated successfully');
+  }
+
   // ── Venues ─────────────────────────────────────────────────
 
   async getVenues(status?: string) {

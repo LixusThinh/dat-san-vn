@@ -70,6 +70,7 @@ interface RawOwnerVenue {
   district: string;
   city: string;
   isActive: boolean;
+  pricePerHour?: number | string | null;
   fields: Array<{
     id: string;
     name: string;
@@ -136,6 +137,7 @@ export interface OwnerVenue {
   district: string;
   city: string;
   isActive: boolean;
+  pricePerHour: number | null;
   ownerStatus: VenueOwnerStatus;
   fields: Array<{
     id: string;
@@ -208,7 +210,12 @@ async function requestApi<T>(path: string, { token, body, headers, ...init }: Re
     return null as T;
   }
 
-  const payload = (await response.json()) as ApiEnvelope<T>;
+  let payload: ApiEnvelope<T>;
+  try {
+    payload = (await response.json()) as ApiEnvelope<T>;
+  } catch (e) {
+    throw new Error(`API returned invalid JSON (${response.status})`);
+  }
   return unwrapApiResponse(payload);
 }
 
@@ -247,6 +254,7 @@ function mapOwnerVenue(venue: RawOwnerVenue): OwnerVenue {
     district: venue.district,
     city: venue.city,
     isActive: venue.isActive,
+    pricePerHour: venue.pricePerHour != null ? Number(venue.pricePerHour) : null,
     ownerStatus: venue.owners?.[0]?.status ?? "PENDING",
     fields: venue.fields.map((field) => ({
       id: field.id,
@@ -271,14 +279,31 @@ function mapOwnerField(field: RawOwnerField): OwnerField {
   };
 }
 
-export async function getCurrentUserProfile(token: string) {
-  const profile = await requestApi<CurrentUserProfileResponse>("/users/me", { token });
-  return {
-    id: profile.id,
-    fullName: profile.fullName,
-    email: profile.email,
-    role: profile.role,
-  } satisfies CurrentUserProfile;
+export async function getCurrentUserProfile(token: string, retries = 3): Promise<CurrentUserProfile | null> {
+  try {
+    const profile = await requestApi<CurrentUserProfileResponse>("/users/me", { token });
+    return {
+      id: profile.id,
+      fullName: profile.fullName,
+      email: profile.email,
+      role: profile.role,
+    } satisfies CurrentUserProfile;
+  } catch (error: any) {
+    // Nếu lỗi là do chưa sync kịp user từ Clerk sang DB (Race condition)
+    if (error.message?.includes("User not found") && retries > 0) {
+      console.log(`[Auth] User not found in DB, retrying in 2s... (${retries} retries left)`);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      return getCurrentUserProfile(token, retries - 1);
+    }
+
+    // Nếu hết lượt retry hoặc lỗi khác, ném lỗi ra ngoài
+    if (retries === 0 && error.message?.includes("User not found")) {
+      console.warn("[Auth] User still not found after retries. Webhook sync might be delayed.");
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 export async function getOwnerBookings(
@@ -361,6 +386,13 @@ export function updateVenueField(token: string, fieldId: string, payload: Update
 
 export function deleteVenueField(token: string, fieldId: string) {
   return requestApi(`/fields/${fieldId}`, {
+    token,
+    method: "DELETE",
+  });
+}
+
+export function deleteOwnerVenue(token: string, venueId: string) {
+  return requestApi(`/venues/${venueId}`, {
     token,
     method: "DELETE",
   });

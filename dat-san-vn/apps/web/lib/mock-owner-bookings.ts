@@ -15,6 +15,7 @@ import type { BookingStatus } from "@dat-san-vn/types";
 import type { OwnerBooking, OwnerBookingStatusFilter } from "@/lib/owner-api";
 import type { PlayerBooking } from "@/lib/player-booking-api";
 import { venueDetails } from "@/lib/mock-data";
+import { safeJsonParse } from "@/lib/utils";
 
 const MOCK_STORAGE_KEY = "mock_bookings";
 const OWNER_SEED_KEY = "mock_owner_seeded";
@@ -159,7 +160,7 @@ function loadOwnerBookingsFromStorage(): OwnerBooking[] {
   try {
     const raw = localStorage.getItem("mock_owner_bookings");
     if (raw) {
-      return JSON.parse(raw) as OwnerBooking[];
+      return safeJsonParse(raw, []) as OwnerBooking[];
     }
   } catch {
     // Ignore parse errors.
@@ -199,7 +200,7 @@ export function getMockOwnerBookings(
   try {
     const raw = localStorage.getItem(MOCK_STORAGE_KEY);
     if (raw) {
-      const playerItems: PlayerBooking[] = JSON.parse(raw);
+      const playerItems: PlayerBooking[] = safeJsonParse(raw, []);
       playerBookings = playerItems.map(convertPlayerToOwnerBooking);
     }
   } catch {
@@ -263,7 +264,7 @@ function updateBookingStatus(bookingId: string, nextStatus: BookingStatus): void
   try {
     const raw = localStorage.getItem(MOCK_STORAGE_KEY);
     if (raw) {
-      const playerBookings: PlayerBooking[] = JSON.parse(raw);
+      const playerBookings: PlayerBooking[] = safeJsonParse(raw, []);
       const playerIdx = playerBookings.findIndex((b) => b.id === bookingId);
 
       if (playerIdx >= 0) {

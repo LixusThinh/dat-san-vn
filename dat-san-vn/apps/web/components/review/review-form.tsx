@@ -27,13 +27,17 @@ export default function ReviewForm({ venueId, onReviewSubmitted }: ReviewFormPro
 
     startTransition(async () => {
       try {
-        const res = await fetch('/api/reviews', {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000/api";
+        const res = await fetch(`${API_BASE_URL}/reviews`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ venueId, rating, comment }),
         });
 
-        if (!res.ok) throw new Error('Không thể gửi review');
+        if (!res.ok) {
+          const errorMsg = await res.json().then(d => d.message).catch(() => 'Không thể gửi review');
+          throw new Error(errorMsg);
+        }
 
         toast({ title: "Cảm ơn!", description: "Đánh giá của bạn đã được ghi nhận." });
         setComment('');

@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { Plus, PencilLine, ShieldCheck, Clock3 } from "lucide-react";
+import { Plus, PencilLine, ShieldCheck, Clock3, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import {
   createOwnerVenue,
   getOwnerVenues,
   updateOwnerVenue,
+  deleteOwnerVenue,
   type OwnerVenue,
 } from "@/lib/owner-api";
 import type { CreateVenuePayload } from "@dat-san-vn/types";
@@ -58,6 +59,7 @@ export function OwnerVenuesClient({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingVenue, setEditingVenue] = useState<OwnerVenue | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deletingVenueId, setDeletingVenueId] = useState<string | null>(null);
 
   async function refreshVenues() {
     const token = await getToken();
@@ -117,6 +119,41 @@ export function OwnerVenuesClient({
       });
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleDelete(venue: OwnerVenue) {
+    if (!window.confirm(`Xoá sân "${venue.name}" khỏi danh sách quản lý của bạn?`)) {
+      return;
+    }
+
+    const token = await getToken();
+    if (!token) {
+      toast({
+        variant: "destructive",
+        title: "Thiếu phiên đăng nhập",
+        description: "Vui lòng đăng nhập lại để xoá sân.",
+      });
+      return;
+    }
+
+    setDeletingVenueId(venue.id);
+
+    try {
+      await deleteOwnerVenue(token, venue.id);
+      toast({
+        title: "Đã xoá sân",
+        description: "Sân đã được xoá khỏi danh sách quản lý.",
+      });
+      await refreshVenues();
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Xoá sân thất bại",
+        description: error instanceof Error ? error.message : "Không thể xoá sân.",
+      });
+    } finally {
+      setDeletingVenueId(null);
     }
   }
 
@@ -209,8 +246,17 @@ export function OwnerVenuesClient({
                         setSheetOpen(true);
                       }}
                     >
-                      <PencilLine className="h-4 w-4" />
+                      <PencilLine className="h-4 w-4 mr-1" />
                       Sửa
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="border-red-200 text-red-700 hover:bg-red-50"
+                      disabled={deletingVenueId === venue.id}
+                      onClick={() => handleDelete(venue)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Xoá
                     </Button>
                     <Button asChild variant="outline">
                       <Link href={`/owner/venues/${venue.id}/fields`}>Quản lý Field</Link>

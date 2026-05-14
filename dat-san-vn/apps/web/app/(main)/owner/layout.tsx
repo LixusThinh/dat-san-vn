@@ -60,9 +60,12 @@ export default async function OwnerLayout({
     };
   }
 
-  if (!isMockMode && profile && profile.role !== "OWNER") {
+  if (!isMockMode && (!profile || profile.role !== "OWNER")) {
     redirect("/");
   }
+
+  // After the redirect guard above, profile is guaranteed to be non-null.
+  const userProfile = profile!;
 
   return (
     <div className="px-4 pb-10 pt-6 sm:px-6 lg:px-8">
@@ -79,8 +82,8 @@ export default async function OwnerLayout({
                     </Badge>
                   )}
                 </div>
-                <h1 className="mt-3 text-2xl font-semibold text-slate-950">{profile.fullName}</h1>
-                <p className="mt-2 text-sm text-slate-600">{profile.email}</p>
+                <h1 className="mt-3 text-2xl font-semibold text-slate-950">{userProfile.fullName}</h1>
+                <p className="mt-2 text-sm text-slate-600">{userProfile.email}</p>
               </div>
 
               <nav className="grid gap-3">

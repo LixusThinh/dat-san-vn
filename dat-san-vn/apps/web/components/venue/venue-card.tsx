@@ -5,7 +5,7 @@ import { ArrowUpRight, MapPin, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getSafeImageUrl, VENUE_PLACEHOLDER_IMAGE } from "@/lib/utils";
 import { venueDetails } from "@/lib/mock-data";
 
 const sizeLabel: Record<FieldSize, string> = {
@@ -31,8 +31,7 @@ export function VenueCard({
           <Image
             src={
               detail?.heroImage ??
-              venue.images[0] ??
-              "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=1200&q=80"
+              getSafeImageUrl(venue.images[0])
             }
             alt={venue.name}
             fill
@@ -72,7 +71,12 @@ export function VenueCard({
             <div>
               <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Giá từ</div>
               <div className="text-lg font-semibold text-slate-950">
-                {formatCurrency(detail?.minPrice ?? 450000)}
+                {(() => {
+                  const rawPrice = Number(venue.pricePerHour ?? detail?.minPrice ?? 0);
+                  return Number.isFinite(rawPrice) && rawPrice > 0
+                    ? `${rawPrice.toLocaleString("vi-VN")} đ`
+                    : "Liên hệ";
+                })()}
               </div>
             </div>
             <Button asChild>

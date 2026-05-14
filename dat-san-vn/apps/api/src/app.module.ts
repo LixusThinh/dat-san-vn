@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -14,6 +16,7 @@ import { QueuesModule } from './queues/queues.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { ReviewModule } from './review/review.module';
 import { StaffModule } from './staff/staff.module.js';
+import { UploadModule } from './upload/upload.module.js';
 
 /**
  * AppModule — root module.
@@ -51,6 +54,13 @@ import { StaffModule } from './staff/staff.module.js';
       load: [clerkConfig],
     }),
 
+    // Serve uploaded images at /uploads/*
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'uploads'),
+      serveRoot: '/uploads',
+      serveStaticOptions: { index: false },
+    }),
+
     // Global Prisma client — PrismaService injectable in any module
     PrismaModule,
 
@@ -78,6 +88,9 @@ import { StaffModule } from './staff/staff.module.js';
 
     // Staff management (venue-scoped permissions)
     StaffModule,
+
+    // Image upload
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],

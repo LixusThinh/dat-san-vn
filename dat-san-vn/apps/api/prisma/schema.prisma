@@ -128,9 +128,10 @@ model Venue {
   city        String
   latitude    Float?
   longitude   Float?
-  images      String[]
-  amenities   String[]
-  isActive    Boolean   @default(false) @map("is_active") // ADMIN duyệt sân
+  images       String[]
+  amenities    String[]
+  pricePerHour Decimal?  @map("price_per_hour") @db.Decimal(12, 0)
+  isActive     Boolean   @default(false) @map("is_active") // ADMIN duyệt sân
   rating      Float     @default(0.0)
   avgRating   Decimal?  @default(0) @map("avg_rating") @db.Decimal(3, 2)
   reviewCount Int       @default(0) @map("review_count")

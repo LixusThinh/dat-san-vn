@@ -21,6 +21,27 @@ import {
   assertOptimisticUpdate,
   withOptimisticLock,
 } from '../common/optimistic-lock.guard.js';
+import type { AuthUser } from '../auth/interfaces/auth-user.interface.js';
+
+/**
+ * Safely parse JSON strings or return the value if it's already an array.
+ */
+function safeJsonParse(value: unknown, fallback: any = []) {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'object') return value;
+  if (typeof value !== 'string') return fallback;
+
+  try {
+    const parsed = JSON.parse(value);
+    return parsed ?? fallback;
+  } catch {
+    // Fallback for single strings that aren't JSON
+    if (Array.isArray(fallback) && typeof value === 'string' && value.trim()) {
+      return [value.trim()];
+    }
+    return fallback;
+  }
+}
 
 @Injectable()
 export class VenueService {
@@ -45,8 +66,11 @@ export class VenueService {
         city: dto.city,
         latitude: dto.latitude,
         longitude: dto.longitude,
-        images: dto.images ?? [],
+        images: dto.heroImage 
+          ? [dto.heroImage, ...(dto.gallery ?? [])] 
+          : (dto.images ?? []),
         amenities: dto.amenities ?? [],
+        pricePerHour: dto.pricePerHour ?? null,
         // isActive defaults to false — ADMIN duyệt
         owners: {
           create: {
@@ -156,7 +180,28 @@ export class VenueService {
       throw new NotFoundException(`Venue with ID "${id}" not found`);
     }
 
-    return success(venue, 'Venue retrieved successfully');
+    // Map Prisma venue to Frontend VenueDetail shape
+    const images = safeJsonParse(venue.images, []);
+    const amenities = safeJsonParse(venue.amenities, []);
+
+    const mappedVenue = {
+      ...venue,
+      pricePerHour: venue.pricePerHour ? Number(venue.pricePerHour) : null,
+      images,
+      amenities,
+      heroImage: images[0] || '',
+      gallery: images.slice(1),
+      categoryLabel: 'Sân bóng đá', // Placeholder
+      districtLabel: `${venue.district}, ${venue.city}`,
+      minPrice: 0, // Should be calculated from slots
+      openingHours: '05:00 - 22:00', // Placeholder
+      phone: '0900 000 000', // Placeholder
+      highlight: 'Chất lượng sân tốt, ánh sáng đảm bảo.', // Placeholder
+      distanceKm: 0,
+      reviewCount: venue._count?.reviews || 0,
+    };
+
+    return success(mappedVenue, 'Venue retrieved successfully');
   }
 
   async update(id: string, userId: string, dto: UpdateVenueDto) {
@@ -168,10 +213,16 @@ export class VenueService {
     });
 
     const venue = await withOptimisticLock(async () => {
+      const { heroImage, gallery, ...restDto } = dto;
+      const images = heroImage 
+        ? [heroImage, ...(gallery ?? [])] 
+        : restDto.images;
+
       const result = await this.prisma.venue.updateMany({
         where: { id, version: currentVenue.version, deletedAt: null },
         data: {
-          ...dto,
+          ...restDto,
+          ...(images ? { images } : {}),
           version: { increment: 1 },
         },
       });
@@ -192,8 +243,10 @@ export class VenueService {
     return success(venue, 'Venue updated successfully');
   }
 
-  async remove(id: string, userId: string) {
-    await this.validateManagementAccess(id, userId);
+  async remove(id: string, user: AuthUser) {
+    if (user.role !== 'ADMIN') {
+      await this.validateManagementAccess(id, user.id);
+    }
 
     const currentVenue = await this.prisma.venue.findUniqueOrThrow({
       where: { id },
@@ -212,7 +265,7 @@ export class VenueService {
       assertOptimisticUpdate(result);
     }, currentVenue.version);
 
-    this.logger.log(`Venue soft-deleted: ${id} by user: ${userId}`);
+    this.logger.log(`Venue soft-deleted: ${id} by user: ${user.id}`);
     return success(null, 'Venue deleted successfully');
   }
 

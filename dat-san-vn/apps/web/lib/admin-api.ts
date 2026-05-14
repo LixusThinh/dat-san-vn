@@ -66,7 +66,12 @@ async function requestApi<T>(path: string, { token, body, headers, ...init }: Re
     return null as T;
   }
 
-  const payload = (await response.json()) as ApiEnvelope<T>;
+  let payload: ApiEnvelope<T>;
+  try {
+    payload = (await response.json()) as ApiEnvelope<T>;
+  } catch (e) {
+    throw new Error(`API returned invalid JSON (${response.status})`);
+  }
   return unwrapApiResponse(payload);
 }
 
@@ -183,6 +188,13 @@ export async function deleteUser(token: string, userId: string) {
   });
 }
 
+export async function activateUser(token: string, userId: string) {
+  return requestApi(`/admin/users/${userId}/activate`, {
+    token,
+    method: "PATCH",
+  });
+}
+
 export async function getAdminVenues(token: string, status?: string) {
   const query = status ? `?status=${status}` : "";
   return requestApi<AdminVenue[]>(`/admin/venues${query}`, { token });
@@ -204,4 +216,11 @@ export async function rejectVenue(token: string, venueId: string) {
 
 export async function getAdminBookings(token: string, page = 1, limit = 20) {
   return requestApi<PaginatedResponse<AdminBooking>>(`/admin/bookings?page=${page}&limit=${limit}`, { token });
+}
+
+export async function deleteVenue(token: string, venueId: string) {
+  return requestApi(`/venues/${venueId}`, {
+    token,
+    method: "DELETE",
+  });
 }

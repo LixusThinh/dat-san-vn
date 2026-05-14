@@ -14,26 +14,30 @@ export default function ReviewList({ reviews }: { reviews: Review[] }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6">
       {reviews.map((review) => (
-        <div key={review.id} className="border-b pb-6 last:border-0">
-          <div className="flex items-center gap-3">
-            <div className="flex">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star
-                  key={i}
-                  className={`w-5 h-5 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
-                />
-              ))}
+        <div key={review.id} className="break-inside-avoid bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="font-semibold text-sm text-slate-900">
+                {review.user?.fullName || 'Người dùng ẩn danh'}
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <div className="flex">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-3.5 h-3.5 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`}
+                    />
+                  ))}
+                </div>
+                <span className="text-[11px] text-slate-400">
+                  {new Date(review.createdAt).toLocaleDateString('vi-VN')}
+                </span>
+              </div>
             </div>
-            <span className="text-sm text-gray-500">
-              {review.user?.fullName || 'Người dùng'}
-            </span>
-            <span className="text-xs text-gray-400">
-              {new Date(review.createdAt).toLocaleDateString('vi-VN')}
-            </span>
           </div>
-          {review.comment && <p className="mt-2 text-gray-700">{review.comment}</p>}
+          {review.comment && <p className="mt-3 text-sm text-slate-600 leading-relaxed">{review.comment}</p>}
         </div>
       ))}
     </div>

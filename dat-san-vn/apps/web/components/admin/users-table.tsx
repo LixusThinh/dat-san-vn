@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
+import { Shield, ShieldAlert, ShieldCheck, Trash2, RotateCcw } from "lucide-react";
 import type { AdminUser } from "@/lib/admin-api";
 import type { UserRole } from "@dat-san-vn/types";
 import { Badge } from "@/components/ui/badge";
@@ -83,6 +83,19 @@ export function UsersTable({
     }
   }
 
+  async function handleActivate(userId: string) {
+    setActionUserId(userId);
+    try {
+      const { activateUser } = await import("@/lib/admin-api");
+      await activateUser(token, userId);
+      startTransition(() => router.refresh());
+    } catch (error) {
+      console.error("Failed to activate user:", error);
+    } finally {
+      setActionUserId(null);
+    }
+  }
+
   if (users.length === 0) {
     return (
       <div className="rounded-[28px] border border-dashed border-slate-200 bg-slate-50 px-6 py-12 text-center text-sm text-slate-500">
@@ -149,15 +162,29 @@ export function UsersTable({
                             </option>
                           ))}
                         </select>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={isLoading}
-                          className="h-8 w-8 p-0 text-slate-400 hover:text-red-600"
-                          onClick={() => handleDelete(user.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {user.isActive ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={isLoading}
+                            className="h-8 w-8 p-0 text-slate-400 hover:text-red-600"
+                            onClick={() => handleDelete(user.id)}
+                            title="Vô hiệu hoá"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={isLoading}
+                            className="h-8 w-8 p-0 text-slate-400 hover:text-emerald-600"
+                            onClick={() => handleActivate(user.id)}
+                            title="Kích hoạt lại"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

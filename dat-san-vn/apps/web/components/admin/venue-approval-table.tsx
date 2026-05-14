@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle, Trash2 } from "lucide-react";
 import type { AdminVenue } from "@/lib/admin-api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -91,6 +91,20 @@ export function VenueApprovalTable({
     }
   }
 
+  async function handleDelete(venueId: string) {
+    if (!confirm("Bạn chắc chắn muốn xoá hoàn toàn venue này khỏi hệ thống?")) return;
+    setActionVenueId(venueId);
+    try {
+      const { deleteVenue } = await import("@/lib/admin-api");
+      await deleteVenue(token, venueId);
+      startTransition(() => router.refresh());
+    } catch (error) {
+      console.error("Failed to delete venue:", error);
+    } finally {
+      setActionVenueId(null);
+    }
+  }
+
   const filterTabs: { value: VenueStatusFilter; label: string }[] = [
     { value: "ALL", label: `Tất cả (${venues.length})` },
     { value: "PENDING", label: `Chờ duyệt (${venues.filter((v) => getVenueDisplayStatus(v) === "PENDING").length})` },
@@ -160,31 +174,41 @@ export function VenueApprovalTable({
                           {new Date(venue.createdAt).toLocaleDateString("vi-VN")}
                         </TableCell>
                         <TableCell className="text-right">
-                          {displayStatus === "PENDING" ? (
-                            <div className="flex items-center justify-end gap-2">
-                              <Button
-                                size="sm"
-                                disabled={isLoading}
-                                className="bg-emerald-600 text-white hover:bg-emerald-700"
-                                onClick={() => handleApprove(venue.id)}
-                              >
-                                <CheckCircle2 className="mr-1.5 h-4 w-4" />
-                                Duyệt
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                disabled={isLoading}
-                                className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                                onClick={() => handleReject(venue.id)}
-                              >
-                                <XCircle className="mr-1.5 h-4 w-4" />
-                                Từ chối
-                              </Button>
-                            </div>
-                          ) : (
-                            <span className="text-sm text-slate-400">—</span>
-                          )}
+                          <div className="flex items-center justify-end gap-2">
+                            {displayStatus === "PENDING" && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  disabled={isLoading}
+                                  className="bg-emerald-600 text-white hover:bg-emerald-700"
+                                  onClick={() => handleApprove(venue.id)}
+                                >
+                                  <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                                  Duyệt
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  disabled={isLoading}
+                                  className="text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                                  onClick={() => handleReject(venue.id)}
+                                >
+                                  <XCircle className="mr-1.5 h-4 w-4" />
+                                  Từ chối
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={isLoading}
+                              className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                              onClick={() => handleDelete(venue.id)}
+                            >
+                              <Trash2 className="mr-1.5 h-4 w-4" />
+                              Xoá
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

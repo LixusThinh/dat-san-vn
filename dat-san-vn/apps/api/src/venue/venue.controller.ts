@@ -74,9 +74,9 @@ export class VenueController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
-    return this.venueService.remove(id, user.id);
+    return this.venueService.remove(id, user);
   }
 
   // ── Ownership Routes ──────────────────────────────────────

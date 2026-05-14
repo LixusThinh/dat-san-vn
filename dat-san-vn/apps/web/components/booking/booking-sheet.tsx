@@ -16,7 +16,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { createPlayerBooking } from "@/lib/player-booking-api";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, safeJsonParse } from "@/lib/utils";
 
 export function BookingSheet({
   venueName,
@@ -78,7 +78,7 @@ export function BookingSheet({
           cancelledAt: null,
           cancelReason: null,
         };
-        const existing = JSON.parse(localStorage.getItem("mock_bookings") || "[]");
+        const existing = safeJsonParse(localStorage.getItem("mock_bookings"), []);
         localStorage.setItem("mock_bookings", JSON.stringify([mockBooking, ...existing]));
       }
 
@@ -131,7 +131,7 @@ export function BookingSheet({
             </div>
             <div className="flex items-center gap-3 text-sm text-slate-700">
               <Wallet className="h-4 w-4 text-emerald-700" />
-              {formatCurrency(pricePerSlot)}
+              {pricePerSlot > 0 ? formatCurrency(pricePerSlot) : "Liên hệ"}
             </div>
           </div>
         </div>

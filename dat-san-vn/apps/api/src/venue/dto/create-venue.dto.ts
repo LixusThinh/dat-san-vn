@@ -10,6 +10,7 @@ import {
   IsArray,
   MinLength,
   MaxLength,
+  Min,
 } from 'class-validator';
 
 export class CreateVenueDto {
@@ -47,9 +48,23 @@ export class CreateVenueDto {
   longitude?: number;
 
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  pricePerHour?: number;
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   images?: string[];
+
+  @IsOptional()
+  @IsString()
+  heroImage?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  gallery?: string[];
 
   @IsOptional()
   @IsArray()

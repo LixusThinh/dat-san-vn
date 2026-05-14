@@ -90,7 +90,10 @@ export interface CreateVenuePayload {
   city: string;
   latitude?: number;
   longitude?: number;
+  pricePerHour?: number;
   images?: string[];
+  heroImage?: string;
+  gallery?: string[];
   amenities?: string[];
 }
 
@@ -122,8 +125,11 @@ export interface VenueSummary {
   address: string;
   district: string;
   city: string;
+  latitude?: number;
+  longitude?: number;
   images: string[];
   isActive: boolean;
+  pricePerHour?: number;
   fields: FieldSummary[];
   _count: { reviews: number };
 }

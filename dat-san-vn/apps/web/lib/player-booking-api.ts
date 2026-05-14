@@ -107,7 +107,12 @@ async function requestApi<T>(path: string, { token, body, headers, ...init }: Re
     throw new Error(message);
   }
 
-  const payload = (await response.json()) as ApiEnvelope<T>;
+  let payload: ApiEnvelope<T>;
+  try {
+    payload = (await response.json()) as ApiEnvelope<T>;
+  } catch (e) {
+    throw new Error(`API returned invalid JSON (${response.status})`);
+  }
   return unwrapApiResponse(payload);
 }
 

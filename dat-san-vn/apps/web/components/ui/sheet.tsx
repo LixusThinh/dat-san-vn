@@ -16,7 +16,12 @@ const SheetOverlay = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
-    className={cn("fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm", className)}
+    className={cn(
+      "fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm transition-opacity duration-200",
+      "data-[state=open]:animate-in data-[state=open]:fade-in-0",
+      "data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
+      className,
+    )}
     {...props}
     ref={ref}
   />
@@ -24,14 +29,14 @@ const SheetOverlay = React.forwardRef<
 SheetOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const sheetVariants = cva(
-  "fixed z-50 gap-4 bg-white/95 p-6 shadow-[0_24px_80px_rgba(16,34,22,0.18)] transition ease-in-out sm:p-8",
+  "fixed z-50 gap-4 bg-white/95 p-6 shadow-[0_24px_80px_rgba(16,34,22,0.18)] transition-transform duration-200 ease-out sm:p-8 data-[state=open]:animate-in data-[state=closed]:animate-out",
   {
     variants: {
       side: {
-        top: "inset-x-0 top-0 border-b border-white/70",
-        bottom: "inset-x-0 bottom-0 border-t border-white/70",
-        left: "inset-y-0 left-0 h-full w-[88vw] border-r border-white/70 sm:max-w-sm",
-        right: "inset-y-0 right-0 h-full w-[88vw] border-l border-white/70 sm:max-w-lg",
+        top: "inset-x-0 top-0 border-b border-white/70 data-[state=open]:slide-in-from-top data-[state=closed]:slide-out-to-top",
+        bottom: "inset-x-0 bottom-0 border-t border-white/70 data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
+        left: "inset-y-0 left-0 h-full w-[88vw] border-r border-white/70 sm:max-w-sm data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left",
+        right: "inset-y-0 right-0 h-full w-[88vw] border-l border-white/70 sm:max-w-lg data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right",
       },
     },
     defaultVariants: {
